@@ -111,7 +111,7 @@ export class WeatherService {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Weather Logs');
 
-    // Headers
+    // Cabeçalhos
     worksheet.columns = [
       { header: 'Timestamp', key: 'timestamp', width: 20 },
       { header: 'Latitude', key: 'latitude', width: 12 },
@@ -123,7 +123,7 @@ export class WeatherService {
       { header: 'Precipitation (mm)', key: 'precipitation', width: 18 },
     ];
 
-    // Data rows
+    // Linhas de dados
     logs.forEach((log) => {
       worksheet.addRow({
         timestamp: log.timestamp,
@@ -137,7 +137,7 @@ export class WeatherService {
       });
     });
 
-    // Style header row
+    // Estiliza linha de cabeçalho
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
       type: 'pattern',

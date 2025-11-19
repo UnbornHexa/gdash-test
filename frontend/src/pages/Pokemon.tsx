@@ -62,19 +62,19 @@ const Pokemon = () => {
   };
 
   if (loading && pokemons.length === 0) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12">Carregando...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Pokemon Explorer</h1>
+      <h1 className="text-3xl font-bold text-gray-900">Explorador de Pokémon</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Pokemon List</CardTitle>
-              <CardDescription>Page {page} of {totalPages}</CardDescription>
+              <CardTitle>Lista de Pokémon</CardTitle>
+              <CardDescription>Página {page} de {totalPages}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -115,16 +115,16 @@ const Pokemon = () => {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  Previous
+                  Anterior
                 </Button>
                 <span className="text-sm text-gray-500">
-                  Page {page} of {totalPages}
+                  Página {page} de {totalPages}
                 </span>
                 <Button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  Next
+                  Próxima
                 </Button>
               </div>
             </CardContent>
@@ -136,7 +136,7 @@ const Pokemon = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="capitalize">{selectedPokemon.name}</CardTitle>
-                <CardDescription>Pokemon #{selectedPokemon.id}</CardDescription>
+                <CardDescription>Pokémon #{selectedPokemon.id}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {selectedPokemon.sprites.frontDefault && (
@@ -150,16 +150,16 @@ const Pokemon = () => {
                 )}
 
                 <div>
-                  <h3 className="font-semibold mb-2">Basic Info</h3>
+                  <h3 className="font-semibold mb-2">Informações Básicas</h3>
                   <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Height:</span> {selectedPokemon.height / 10}m</p>
-                    <p><span className="font-medium">Weight:</span> {selectedPokemon.weight / 10}kg</p>
-                    <p><span className="font-medium">Base Experience:</span> {selectedPokemon.baseExperience}</p>
+                    <p><span className="font-medium">Altura:</span> {selectedPokemon.height / 10}m</p>
+                    <p><span className="font-medium">Peso:</span> {selectedPokemon.weight / 10}kg</p>
+                    <p><span className="font-medium">Experiência Base:</span> {selectedPokemon.baseExperience}</p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Types</h3>
+                  <h3 className="font-semibold mb-2">Tipos</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedPokemon.types.map((type) => (
                       <span
@@ -173,19 +173,19 @@ const Pokemon = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Abilities</h3>
+                  <h3 className="font-semibold mb-2">Habilidades</h3>
                   <div className="space-y-1">
                     {selectedPokemon.abilities.map((ability, index) => (
                       <p key={index} className="text-sm capitalize">
                         {ability.ability.name}
-                        {ability.isHidden && <span className="text-gray-500"> (Hidden)</span>}
+                        {ability.isHidden && <span className="text-gray-500"> (Oculta)</span>}
                       </p>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Base Stats</h3>
+                  <h3 className="font-semibold mb-2">Estatísticas Base</h3>
                   <div className="space-y-1">
                     {selectedPokemon.stats.map((stat, index) => (
                       <div key={index} className="flex justify-between text-sm">

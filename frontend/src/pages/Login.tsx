@@ -24,7 +24,7 @@ const Login = () => {
       await login(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid credentials');
+      setError(err.response?.data?.message || 'Credenciais inválidas');
     } finally {
       setLoading(false);
     }
@@ -37,8 +37,8 @@ const Login = () => {
           <div className="flex justify-center mb-4">
             <Cloud className="h-12 w-12 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Weather Dashboard</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardTitle className="text-2xl">Painel Meteorológico</CardTitle>
+          <CardDescription>Entre com sua conta</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -48,7 +48,7 @@ const Login = () => {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -59,7 +59,7 @@ const Login = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -70,13 +70,13 @@ const Login = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
           <div className="mt-4 text-sm text-center text-gray-500">
-            <p>Default credentials:</p>
-            <p>Email: admin@example.com</p>
-            <p>Password: 123456</p>
+            <p>Credenciais padrão:</p>
+            <p>E-mail: admin@example.com</p>
+            <p>Senha: 123456</p>
           </div>
         </CardContent>
       </Card>

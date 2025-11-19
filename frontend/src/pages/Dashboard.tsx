@@ -52,7 +52,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 60000); // Refresh every minute
+    const interval = setInterval(fetchData, 60000); // Atualiza a cada minuto
     return () => clearInterval(interval);
   }, []);
 
@@ -112,21 +112,21 @@ const Dashboard = () => {
   }));
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12">Carregando...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Weather Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Painel Meteorológico</h1>
         <div className="flex gap-2">
           <Button onClick={handleExportCSV} variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            Exportar CSV
           </Button>
           <Button onClick={handleExportXLSX} variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export XLSX
+            Exportar XLSX
           </Button>
         </div>
       </div>
@@ -135,7 +135,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Temperature</CardTitle>
+              <CardTitle className="text-sm font-medium">Temperatura</CardTitle>
               <Thermometer className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -146,34 +146,34 @@ const Dashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Humidity</CardTitle>
+              <CardTitle className="text-sm font-medium">Umidade</CardTitle>
               <Droplets className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{latest.current.humidity.toFixed(0)}%</div>
-              <p className="text-xs text-muted-foreground">Relative humidity</p>
+              <p className="text-xs text-muted-foreground">Umidade relativa</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Wind Speed</CardTitle>
+              <CardTitle className="text-sm font-medium">Velocidade do Vento</CardTitle>
               <Wind className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{latest.current.windSpeed.toFixed(1)} km/h</div>
-              <p className="text-xs text-muted-foreground">Current wind speed</p>
+              <p className="text-xs text-muted-foreground">Velocidade atual do vento</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Precipitation</CardTitle>
+              <CardTitle className="text-sm font-medium">Precipitação</CardTitle>
               <Cloud className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{latest.current.precipitation.toFixed(1)} mm</div>
-              <p className="text-xs text-muted-foreground">Current precipitation</p>
+              <p className="text-xs text-muted-foreground">Precipitação atual</p>
             </CardContent>
           </Card>
         </div>
@@ -182,26 +182,26 @@ const Dashboard = () => {
       {insights && (
         <Card>
           <CardHeader>
-            <CardTitle>AI Insights</CardTitle>
-            <CardDescription>Weather analysis and predictions</CardDescription>
+            <CardTitle>Insights de IA</CardTitle>
+            <CardDescription>Análise e previsões meteorológicas</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">Summary</h3>
+              <h3 className="font-semibold mb-2">Resumo</h3>
               <p className="text-sm text-muted-foreground">{insights.summary}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Comfort Index</p>
+                <p className="text-sm text-muted-foreground">Índice de Conforto</p>
                 <p className="text-2xl font-bold">{insights.comfort.index}</p>
                 <p className="text-xs text-muted-foreground">{insights.comfort.level}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Classification</p>
+                <p className="text-sm text-muted-foreground">Classificação</p>
                 <p className="text-2xl font-bold">{insights.classification}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Temperature Trend</p>
+                <p className="text-sm text-muted-foreground">Tendência de Temperatura</p>
                 <p className="text-2xl font-bold">{insights.trends.temperature}</p>
                 <p className="text-xs text-muted-foreground">
                   {insights.trends.temperatureChange > 0 ? '+' : ''}
@@ -209,13 +209,13 @@ const Dashboard = () => {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Avg Temperature</p>
+                <p className="text-sm text-muted-foreground">Temp. Média</p>
                 <p className="text-2xl font-bold">{insights.statistics.averageTemperature.toFixed(1)}°C</p>
               </div>
             </div>
             {insights.alerts.length > 0 && (
               <div>
-                <h3 className="font-semibold mb-2">Alerts</h3>
+                <h3 className="font-semibold mb-2">Alertas</h3>
                 <ul className="list-disc list-inside space-y-1">
                   {insights.alerts.map((alert, index) => (
                     <li key={index} className="text-sm text-orange-600">{alert}</li>
@@ -231,8 +231,8 @@ const Dashboard = () => {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Temperature & Humidity Trends</CardTitle>
-              <CardDescription>Last 50 data points</CardDescription>
+              <CardTitle>Tendências de Temperatura e Umidade</CardTitle>
+              <CardDescription>Últimos 50 pontos de dados</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -242,8 +242,8 @@ const Dashboard = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperature (°C)" />
-                  <Line type="monotone" dataKey="humidity" stroke="#82ca9d" name="Humidity (%)" />
+                  <Line type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperatura (°C)" />
+                  <Line type="monotone" dataKey="humidity" stroke="#82ca9d" name="Umidade (%)" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -251,8 +251,8 @@ const Dashboard = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Wind Speed</CardTitle>
-              <CardDescription>Last 50 data points</CardDescription>
+              <CardTitle>Velocidade do Vento</CardTitle>
+              <CardDescription>Últimos 50 pontos de dados</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -262,7 +262,7 @@ const Dashboard = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="windSpeed" fill="#8884d8" name="Wind Speed (km/h)" />
+                  <Bar dataKey="windSpeed" fill="#8884d8" name="Velocidade do Vento (km/h)" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

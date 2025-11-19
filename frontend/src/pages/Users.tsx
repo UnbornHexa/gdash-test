@@ -43,7 +43,7 @@ const Users = () => {
       setShowCreateForm(false);
       fetchUsers();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error creating user');
+      alert(error.response?.data?.message || 'Erro ao criar usuário');
     }
   };
 
@@ -56,17 +56,17 @@ const Users = () => {
       setFormData({ email: '', password: '', name: '' });
       fetchUsers();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error updating user');
+      alert(error.response?.data?.message || 'Erro ao atualizar usuário');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
     try {
       await api.delete(`/users/${id}`);
       fetchUsers();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Error deleting user');
+      alert(error.response?.data?.message || 'Erro ao excluir usuário');
     }
   };
 
@@ -77,27 +77,27 @@ const Users = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12">Carregando...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
         <Button onClick={() => { setShowCreateForm(!showCreateForm); setEditingUser(null); setFormData({ email: '', password: '', name: '' }); }}>
-          {showCreateForm ? 'Cancel' : 'Create User'}
+          {showCreateForm ? 'Cancelar' : 'Criar Usuário'}
         </Button>
       </div>
 
       {showCreateForm && (
         <Card>
           <CardHeader>
-            <CardTitle>{editingUser ? 'Edit User' : 'Create New User'}</CardTitle>
+            <CardTitle>{editingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={editingUser ? handleUpdate : handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   type="email"
@@ -107,7 +107,7 @@ const Users = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password {editingUser && '(leave empty to keep current)'}</Label>
+                <Label htmlFor="password">Senha {editingUser && '(deixe vazio para manter a atual)'}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -118,7 +118,7 @@ const Users = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">Name (optional)</Label>
+                <Label htmlFor="name">Nome (opcional)</Label>
                 <Input
                   id="name"
                   type="text"
@@ -126,7 +126,7 @@ const Users = () => {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
-              <Button type="submit">{editingUser ? 'Update User' : 'Create User'}</Button>
+              <Button type="submit">{editingUser ? 'Atualizar Usuário' : 'Criar Usuário'}</Button>
             </form>
           </CardContent>
         </Card>
@@ -134,19 +134,19 @@ const Users = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
-          <CardDescription>Manage system users</CardDescription>
+          <CardTitle>Todos os Usuários</CardTitle>
+          <CardDescription>Gerencie os usuários do sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-mail</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -156,15 +156,15 @@ const Users = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.name || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
+                        {user.isActive ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {new Date(user.createdAt).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => startEdit(user)}>Edit</Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(user._id)}>Delete</Button>
+                      <Button variant="outline" size="sm" onClick={() => startEdit(user)}>Editar</Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(user._id)}>Excluir</Button>
                     </td>
                   </tr>
                 ))}

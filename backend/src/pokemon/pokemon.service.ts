@@ -36,7 +36,7 @@ export class PokemonService {
         },
       };
     } catch (error) {
-      throw new HttpException('Failed to fetch Pokémons', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException('Falha ao buscar Pokémon', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -83,9 +83,9 @@ export class PokemonService {
       };
     } catch (error) {
       if (error.response?.status === 404) {
-        throw new HttpException('Pokémon not found', HttpStatus.NOT_FOUND);
+        throw new HttpException('Pokémon não encontrado', HttpStatus.NOT_FOUND);
       }
-      throw new HttpException('Failed to fetch Pokémon details', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException('Falha ao buscar detalhes do Pokémon', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

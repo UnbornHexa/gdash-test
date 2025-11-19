@@ -72,14 +72,14 @@ func NewWorker() (*Worker, error) {
 		return nil, fmt.Errorf("failed to open channel: %w", err)
 	}
 
-	// Declare queue (durable)
+	// Declara fila (durável)
 	_, err = ch.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		queueName, // nome
+		true,      // durável
+		false,     // excluir quando não usado
+		false,     // exclusivo
+		false,     // não aguardar
+		nil,       // argumentos
 	)
 	if err != nil {
 		ch.Close()
@@ -158,32 +158,32 @@ func (w *Worker) processMessage(delivery amqp.Delivery) {
 	var weatherData WeatherData
 
 	if err := json.Unmarshal(delivery.Body, &weatherData); err != nil {
-		log.Printf("Error unmarshaling message: %v", err)
-		delivery.Nack(false, false) // Don't requeue invalid messages
+		log.Printf("Erro ao deserializar mensagem: %v", err)
+		delivery.Nack(false, false) // Não reenfileira mensagens inválidas
 		return
 	}
 
-	// Validate data
+	// Valida dados
 	if !w.validateWeatherData(&weatherData) {
-		log.Printf("Invalid weather data: %+v", weatherData)
-		delivery.Nack(false, false) // Don't requeue invalid messages
+		log.Printf("Dados meteorológicos inválidos: %+v", weatherData)
+		delivery.Nack(false, false) // Não reenfileira mensagens inválidas
 		return
 	}
 
-	// Send to API with retry
+	// Envia para API com retry
 	maxRetries := 3
 	for i := 0; i < maxRetries; i++ {
 		if err := w.sendToAPI(&weatherData); err != nil {
-			log.Printf("Error sending to API (attempt %d/%d): %v", i+1, maxRetries, err)
+			log.Printf("Erro ao enviar para API (tentativa %d/%d): %v", i+1, maxRetries, err)
 			if i < maxRetries-1 {
 				time.Sleep(time.Duration(i+1) * time.Second)
 				continue
 			}
-			// Failed after retries, requeue message
+			// Falhou após tentativas, reenfileira mensagem
 			delivery.Nack(false, true)
 			return
 		}
-		// Success
+		// Sucesso
 		delivery.Ack(false)
 		return
 	}
@@ -196,25 +196,25 @@ func (w *Worker) Start() error {
 	log.Printf("Queue: %s", w.queueName)
 
 	msgs, err := w.channel.Consume(
-		w.queueName, // queue
-		"",          // consumer
+		w.queueName, // fila
+		"",          // consumidor
 		false,       // auto-ack
-		false,       // exclusive
-		false,       // no-local
-		false,       // no-wait
-		nil,         // args
+		false,       // exclusivo
+		false,       // não-local
+		false,       // não aguardar
+		nil,         // argumentos
 	)
 	if err != nil {
 		return fmt.Errorf("failed to register consumer: %w", err)
 	}
 
-	log.Println("Waiting for messages. To exit press CTRL+C")
+	log.Println("Aguardando mensagens. Para sair pressione CTRL+C")
 
 	forever := make(chan bool)
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message")
+			log.Printf("Mensagem recebida")
 			w.processMessage(d)
 		}
 	}()
@@ -226,11 +226,11 @@ func (w *Worker) Start() error {
 func main() {
 	worker, err := NewWorker()
 	if err != nil {
-		log.Fatalf("Failed to create worker: %v", err)
+		log.Fatalf("Falha ao criar worker: %v", err)
 	}
 	defer worker.Close()
 
 	if err := worker.Start(); err != nil {
-		log.Fatalf("Worker error: %v", err)
+		log.Fatalf("Erro no worker: %v", err)
 	}
 }

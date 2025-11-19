@@ -74,6 +74,6 @@ export class WeatherController {
   @UseGuards(JwtAuthGuard)
   async remove(@Param('id') id: string) {
     await this.weatherService.remove(id);
-    return { message: 'Weather log deleted successfully' };
+    return { message: 'Registro meteorológico excluído com sucesso' };
   }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Weather Data Collector Service
-Collects weather data from Open-Meteo API and sends to RabbitMQ
+Serviço de Coleta de Dados Meteorológicos
+Coleta dados meteorológicos da API Open-Meteo e envia para RabbitMQ
 """
 
 import os
@@ -23,11 +23,11 @@ class WeatherCollector:
         self.collection_interval = int(os.getenv('COLLECTION_INTERVAL', '3600'))
         self.queue_name = 'weather_data'
         
-        # Parse RabbitMQ URL
+        # Parse da URL do RabbitMQ
         self.rabbitmq_params = pika.URLParameters(self.rabbitmq_url)
         
     def collect_weather_data(self):
-        """Collect weather data from Open-Meteo API"""
+        """Coleta dados meteorológicos da API Open-Meteo"""
         try:
             params = {
                 'latitude': self.latitude,
@@ -54,7 +54,7 @@ class WeatherCollector:
             
             data = response.json()
             
-            # Extract current weather
+            # Extrai o clima atual
             current = data.get('current', {})
             hourly = data.get('hourly', {})
             
@@ -72,7 +72,7 @@ class WeatherCollector:
                     'precipitation': current.get('precipitation', 0)
                 },
                 'forecast': {
-                    'time': hourly.get('time', [])[:24],  # Next 24 hours
+                    'time': hourly.get('time', [])[:24],  # Próximas 24 horas
                     'temperature': hourly.get('temperature_2m', [])[:24],
                     'humidity': hourly.get('relative_humidity_2m', [])[:24],
                     'windSpeed': hourly.get('wind_speed_10m', [])[:24],
@@ -81,7 +81,7 @@ class WeatherCollector:
                 }
             }
             
-            # Map weather code to condition
+            # Mapeia código meteorológico para condição
             weather_codes = {
                 0: 'clear', 1: 'mainly_clear', 2: 'partly_cloudy', 3: 'overcast',
                 45: 'foggy', 48: 'depositing_rime_fog',
@@ -101,68 +101,68 @@ class WeatherCollector:
             return weather_data
             
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching weather data: {e}")
+            print(f"Erro ao buscar dados meteorológicos: {e}")
             return None
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            print(f"Erro inesperado: {e}")
             return None
     
     def send_to_rabbitmq(self, data):
-        """Send weather data to RabbitMQ queue"""
+        """Envia dados meteorológicos para a fila RabbitMQ"""
         try:
             connection = pika.BlockingConnection(self.rabbitmq_params)
             channel = connection.channel()
             
-            # Declare queue (durable)
+            # Declara fila (durável)
             channel.queue_declare(queue=self.queue_name, durable=True)
             
-            # Publish message
+            # Publica mensagem
             message = json.dumps(data)
             channel.basic_publish(
                 exchange='',
                 routing_key=self.queue_name,
                 body=message,
                 properties=pika.BasicProperties(
-                    delivery_mode=2,  # Make message persistent
+                    delivery_mode=2,  # Torna mensagem persistente
                 )
             )
             
-            print(f"[{datetime.now()}] Weather data sent to RabbitMQ")
+            print(f"[{datetime.now()}] Dados meteorológicos enviados para RabbitMQ")
             connection.close()
             return True
             
         except Exception as e:
-            print(f"Error sending to RabbitMQ: {e}")
+            print(f"Erro ao enviar para RabbitMQ: {e}")
             return False
     
     def run(self):
-        """Main loop"""
-        print("Weather Collector Service Started")
-        print(f"Collecting weather data every {self.collection_interval} seconds")
-        print(f"Location: {self.latitude}, {self.longitude}")
+        """Loop principal"""
+        print("Serviço Coletor Meteorológico Iniciado")
+        print(f"Coletando dados meteorológicos a cada {self.collection_interval} segundos")
+        print(f"Localização: {self.latitude}, {self.longitude}")
         
         while True:
             try:
-                # Collect weather data
+                # Coleta dados meteorológicos
                 weather_data = self.collect_weather_data()
                 
                 if weather_data:
-                    # Send to RabbitMQ
+                    # Envia para RabbitMQ
                     if self.send_to_rabbitmq(weather_data):
-                        print(f"Temperature: {weather_data['current']['temperature']}°C")
-                        print(f"Humidity: {weather_data['current']['humidity']}%")
-                        print(f"Wind Speed: {weather_data['current']['windSpeed']} km/h")
-                        print(f"Condition: {weather_data['current']['condition']}")
+                        print(f"Temperatura: {weather_data['current']['temperature']}°C")
+                        print(f"Umidade: {weather_data['current']['humidity']}%")
+                        print(f"Velocidade do Vento: {weather_data['current']['windSpeed']} km/h")
+                        print(f"Condição: {weather_data['current']['condition']}")
                 
-                # Wait for next collection
+                # Aguarda próxima coleta
                 time.sleep(self.collection_interval)
                 
             except KeyboardInterrupt:
-                print("\nShutting down...")
+                print("\nEncerrando...")
                 break
             except Exception as e:
-                print(f"Error in main loop: {e}")
-                time.sleep(60)  # Wait before retrying
+                print(f"Erro no loop principal: {e}")
+                time.sleep(60)  # Aguarda antes de tentar novamente
 
 if __name__ == '__main__':
     collector = WeatherCollector()

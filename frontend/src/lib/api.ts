@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
+// Adiciona token de autenticação às requisições
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,7 +23,7 @@ api.interceptors.request.use(
   }
 );
 
-// Handle 401 responses
+// Trata respostas 401 (não autorizado)
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -14,7 +14,7 @@ export class UsersModule implements OnModuleInit {
   constructor(private usersService: UsersService) {}
 
   async onModuleInit() {
-    // Create default user on module initialization
+    // Cria usuário padrão na inicialização do módulo
     await this.usersService.createDefaultUser();
   }
 }

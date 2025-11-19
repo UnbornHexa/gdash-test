@@ -8,9 +8,9 @@ const Layout = () => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: Cloud },
-    { name: 'Users', href: '/users', icon: Users },
-    { name: 'Pokemon', href: '/pokemon', icon: Pokemon },
+    { name: 'Painel', href: '/', icon: Cloud },
+    { name: 'Usuários', href: '/users', icon: Users },
+    { name: 'Pokémon', href: '/pokemon', icon: Pokemon },
   ];
 
   return (
@@ -21,7 +21,7 @@ const Layout = () => {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <Cloud className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">Weather Dashboard</span>
+                <span className="ml-2 text-xl font-bold text-gray-900">Painel Meteorológico</span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 {navigation.map((item) => {
@@ -46,7 +46,7 @@ const Layout = () => {
             </div>
             <div className="flex items-center">
               <Button onClick={logout} variant="outline">
-                Logout
+                Sair
               </Button>
             </div>
           </div>
