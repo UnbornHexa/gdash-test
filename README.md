@@ -1,253 +1,253 @@
-# Weather Dashboard - Full Stack Application
+# Painel Meteorológico - Aplicação Full Stack
 
-A comprehensive full-stack application that collects weather data, processes it through a queue system, stores it in MongoDB, and displays it in a modern React dashboard with AI-powered insights.
+Uma aplicação full-stack completa que coleta dados meteorológicos, processa através de um sistema de filas, armazena no MongoDB e exibe em um dashboard React moderno com insights alimentados por IA.
 
-## 🏗️ Architecture
+## 🏗️ Arquitetura
 
-The application consists of 5 main services:
+A aplicação consiste em 5 serviços principais:
 
-1. **Python Service** - Collects weather data from Open-Meteo API and publishes to RabbitMQ
-2. **Go Worker** - Consumes messages from RabbitMQ and forwards them to NestJS API
-3. **NestJS API** - Backend API with MongoDB, authentication, and weather endpoints
-4. **React Frontend** - Modern dashboard with Vite, Tailwind CSS, and shadcn/ui
-5. **Infrastructure** - MongoDB and RabbitMQ containers
+1. **Serviço Python** - Coleta dados meteorológicos da API Open-Meteo e publica no RabbitMQ
+2. **Worker Go** - Consome mensagens do RabbitMQ e encaminha para a API NestJS
+3. **API NestJS** - API backend com MongoDB, autenticação e endpoints meteorológicos
+4. **Frontend React** - Dashboard moderno com Vite, Tailwind CSS e shadcn/ui
+5. **Infraestrutura** - Containers MongoDB e RabbitMQ
 
-## 🚀 Quick Start
+## 🚀 Início Rápido
 
-### Prerequisites
+### Pré-requisitos
 
-- Docker and Docker Compose installed
+- Docker e Docker Compose instalados
 - Git
 
-### Running with Docker Compose
+### Executando com Docker Compose
 
-1. Clone the repository:
+1. Clone o repositório:
 ```bash
 git clone <repository-url>
 cd "Renan Orozco"
 ```
 
-2. Copy environment variables (optional - defaults are set):
+2. Copie as variáveis de ambiente (opcional - padrões estão configurados):
 ```bash
-# The .env file is optional, defaults are configured in docker-compose.yml
+# O arquivo .env é opcional, os padrões estão configurados no docker-compose.yml
 ```
 
-3. Start all services:
+3. Inicie todos os serviços:
 ```bash
 docker-compose up -d
 ```
 
-4. Wait for all services to be ready (may take a few minutes on first run)
+4. Aguarde todos os serviços ficarem prontos (pode levar alguns minutos na primeira execução)
 
-5. Access the application:
+5. Acesse a aplicação:
 - **Frontend**: http://localhost:5173
 - **API**: http://localhost:3000/api
-- **RabbitMQ Management**: http://localhost:15672 (admin/admin123)
+- **Gerenciamento RabbitMQ**: http://localhost:15672 (admin/admin123)
 - **MongoDB**: localhost:27017
 
-### Default Credentials
+### Credenciais Padrão
 
-- **Email**: admin@example.com
-- **Password**: 123456
+- **E-mail**: admin@example.com
+- **Senha**: 123456
 
-## 📦 Services Details
+## 📦 Detalhes dos Serviços
 
-### Python Weather Collector
+### Coletor Meteorológico Python
 
-**Location**: `weather-collector/`
+**Localização**: `weather-collector/`
 
-Collects weather data from Open-Meteo API every hour (configurable) and publishes to RabbitMQ queue.
+Coleta dados meteorológicos da API Open-Meteo a cada hora (configurável) e publica na fila RabbitMQ.
 
-**Environment Variables**:
-- `RABBITMQ_URL`: RabbitMQ connection URL
-- `WEATHER_API_URL`: Open-Meteo API URL (default: https://api.open-meteo.com/v1/forecast)
-- `LATITUDE`: Location latitude (default: 23.5505 - São Paulo)
-- `LONGITUDE`: Location longitude (default: -46.6333 - São Paulo)
-- `COLLECTION_INTERVAL`: Collection interval in seconds (default: 3600)
+**Variáveis de Ambiente**:
+- `RABBITMQ_URL`: URL de conexão do RabbitMQ
+- `WEATHER_API_URL`: URL da API Open-Meteo (padrão: https://api.open-meteo.com/v1/forecast)
+- `LATITUDE`: Latitude da localização (padrão: 23.5505 - São Paulo)
+- `LONGITUDE`: Longitude da localização (padrão: -46.6333 - São Paulo)
+- `COLLECTION_INTERVAL`: Intervalo de coleta em segundos (padrão: 3600)
 
-**Running manually**:
+**Executando manualmente**:
 ```bash
 cd weather-collector
 pip install -r requirements.txt
 python main.py
 ```
 
-### Go Worker
+### Worker Go
 
-**Location**: `go-worker/`
+**Localização**: `go-worker/`
 
-Consumes weather data from RabbitMQ, validates it, and sends to NestJS API.
+Consome dados meteorológicos do RabbitMQ, valida e envia para a API NestJS.
 
-**Environment Variables**:
-- `RABBITMQ_URL`: RabbitMQ connection URL
-- `API_URL`: NestJS API endpoint for weather logs
-- `QUEUE_NAME`: RabbitMQ queue name (default: weather_data)
+**Variáveis de Ambiente**:
+- `RABBITMQ_URL`: URL de conexão do RabbitMQ
+- `API_URL`: Endpoint da API NestJS para logs meteorológicos
+- `QUEUE_NAME`: Nome da fila RabbitMQ (padrão: weather_data)
 
-**Running manually**:
+**Executando manualmente**:
 ```bash
 cd go-worker
 go mod download
 go run main.go
 ```
 
-### NestJS API
+### API NestJS
 
-**Location**: `backend/`
+**Localização**: `backend/`
 
-RESTful API with the following features:
-- Weather data storage and retrieval
-- User management (CRUD)
-- JWT authentication
-- AI-powered weather insights
-- CSV/XLSX export
-- Optional Pokemon API integration
+API RESTful com as seguintes funcionalidades:
+- Armazenamento e recuperação de dados meteorológicos
+- Gerenciamento de usuários (CRUD)
+- Autenticação JWT
+- Insights meteorológicos alimentados por IA
+- Exportação CSV/XLSX
+- Integração opcional com API Pokemon
 
 **Endpoints**:
 
-#### Weather
-- `POST /api/weather/logs` - Create weather log (used by Go worker)
-- `GET /api/weather/logs` - List weather logs (paginated)
-- `GET /api/weather/logs/latest` - Get latest weather data
-- `GET /api/weather/logs/:id` - Get specific weather log
-- `GET /api/weather/insights` - Get AI-generated insights
-- `GET /api/weather/export/csv` - Export weather data as CSV
-- `GET /api/weather/export/xlsx` - Export weather data as XLSX
-- `DELETE /api/weather/logs/:id` - Delete weather log
+#### Meteorologia
+- `POST /api/weather/logs` - Criar log meteorológico (usado pelo worker Go)
+- `GET /api/weather/logs` - Listar logs meteorológicos (paginado)
+- `GET /api/weather/logs/latest` - Obter dados meteorológicos mais recentes
+- `GET /api/weather/logs/:id` - Obter log meteorológico específico
+- `GET /api/weather/insights` - Obter insights gerados por IA
+- `GET /api/weather/export/csv` - Exportar dados meteorológicos como CSV
+- `GET /api/weather/export/xlsx` - Exportar dados meteorológicos como XLSX
+- `DELETE /api/weather/logs/:id` - Excluir log meteorológico
 
-#### Authentication
-- `POST /api/auth/login` - Login and get JWT token
+#### Autenticação
+- `POST /api/auth/login` - Fazer login e obter token JWT
 
-#### Users
-- `GET /api/users` - List all users
-- `POST /api/users` - Create new user
-- `GET /api/users/:id` - Get user by ID
-- `PATCH /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+#### Usuários
+- `GET /api/users` - Listar todos os usuários
+- `POST /api/users` - Criar novo usuário
+- `GET /api/users/:id` - Obter usuário por ID
+- `PATCH /api/users/:id` - Atualizar usuário
+- `DELETE /api/users/:id` - Excluir usuário
 
-#### Pokemon (Optional)
-- `GET /api/pokemon` - List Pokémons (paginated)
-- `GET /api/pokemon/:id` - Get Pokémon details
+#### Pokemon (Opcional)
+- `GET /api/pokemon` - Listar Pokémon (paginado)
+- `GET /api/pokemon/:id` - Obter detalhes do Pokémon
 
-**Environment Variables**:
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: Secret key for JWT tokens
-- `PORT`: API port (default: 3000)
-- `DEFAULT_USER_EMAIL`: Default admin email
-- `DEFAULT_USER_PASSWORD`: Default admin password
+**Variáveis de Ambiente**:
+- `MONGODB_URI`: String de conexão do MongoDB
+- `JWT_SECRET`: Chave secreta para tokens JWT
+- `PORT`: Porta da API (padrão: 3000)
+- `DEFAULT_USER_EMAIL`: E-mail do administrador padrão
+- `DEFAULT_USER_PASSWORD`: Senha do administrador padrão
 
-**Running manually**:
+**Executando manualmente**:
 ```bash
 cd backend
 npm install
 npm run start:dev
 ```
 
-### React Frontend
+### Frontend React
 
-**Location**: `frontend/`
+**Localização**: `frontend/`
 
-Modern React application with:
-- Weather dashboard with real-time data
-- AI insights visualization
-- User management interface
-- Pokemon explorer (optional)
-- CSV/XLSX export functionality
+Aplicação React moderna com:
+- Dashboard meteorológico com dados em tempo real
+- Visualização de insights de IA
+- Interface de gerenciamento de usuários
+- Explorador de Pokemon (opcional)
+- Funcionalidade de exportação CSV/XLSX
 
-**Pages**:
-- `/` - Dashboard with weather data and insights
-- `/users` - User management (CRUD)
-- `/pokemon` - Pokemon explorer with pagination
+**Páginas**:
+- `/` - Dashboard com dados meteorológicos e insights
+- `/users` - Gerenciamento de usuários (CRUD)
+- `/pokemon` - Explorador de Pokemon com paginação
 
-**Environment Variables**:
-- `VITE_API_URL`: Backend API URL (default: http://localhost:3000/api)
+**Variáveis de Ambiente**:
+- `VITE_API_URL`: URL da API backend (padrão: http://localhost:3000/api)
 
-**Running manually**:
+**Executando manualmente**:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 🔄 Data Flow
+## 🔄 Fluxo de Dados
 
-1. **Python Service** → Collects weather data from Open-Meteo API
-2. **Python Service** → Publishes data to RabbitMQ queue (`weather_data`)
-3. **Go Worker** → Consumes messages from RabbitMQ
-4. **Go Worker** → Validates and forwards data to NestJS API
-5. **NestJS API** → Stores data in MongoDB
-6. **React Frontend** → Fetches data from NestJS API and displays it
+1. **Serviço Python** → Coleta dados meteorológicos da API Open-Meteo
+2. **Serviço Python** → Publica dados na fila RabbitMQ (`weather_data`)
+3. **Worker Go** → Consome mensagens do RabbitMQ
+4. **Worker Go** → Valida e encaminha dados para a API NestJS
+5. **API NestJS** → Armazena dados no MongoDB
+6. **Frontend React** → Busca dados da API NestJS e exibe
 
-## 🤖 AI Insights
+## 🤖 Insights de IA
 
-The system generates AI-powered insights from weather data including:
-- Statistical analysis (averages, min/max)
-- Temperature trends (rising/falling)
-- Comfort index (0-100 scale)
-- Weather classification (Cold, Hot, Pleasant, Rainy, etc.)
-- Automated alerts (extreme temperatures, high humidity, etc.)
-- Natural language summaries
+O sistema gera insights alimentados por IA a partir de dados meteorológicos incluindo:
+- Análise estatística (médias, mín/máx)
+- Tendências de temperatura (subindo/descendo)
+- Índice de conforto (escala 0-100)
+- Classificação do clima (Frio, Quente, Agradável, Chuvoso, etc.)
+- Alertas automatizados (temperaturas extremas, alta umidade, etc.)
+- Resumos em linguagem natural
 
-Insights are generated using the `/api/weather/insights` endpoint and can be triggered:
-- Automatically when new data arrives
-- On-demand via frontend
-- With custom limits for data points analyzed
+Os insights são gerados usando o endpoint `/api/weather/insights` e podem ser acionados:
+- Automaticamente quando novos dados chegam
+- Sob demanda via frontend
+- Com limites personalizados para pontos de dados analisados
 
-## 📊 Features
+## 📊 Funcionalidades
 
-### Weather Dashboard
-- Real-time weather data display
-- Temperature, humidity, wind speed, and precipitation cards
-- Interactive charts (temperature, humidity, wind speed trends)
-- AI insights panel with statistics and alerts
-- Export functionality (CSV/XLSX)
+### Dashboard Meteorológico
+- Exibição de dados meteorológicos em tempo real
+- Cards de temperatura, umidade, velocidade do vento e precipitação
+- Gráficos interativos (tendências de temperatura, umidade, velocidade do vento)
+- Painel de insights de IA com estatísticas e alertas
+- Funcionalidade de exportação (CSV/XLSX)
 
-### User Management
-- Complete CRUD operations
-- JWT-based authentication
-- Default admin user creation on startup
-- User activation/deactivation
+### Gerenciamento de Usuários
+- Operações CRUD completas
+- Autenticação baseada em JWT
+- Criação de usuário administrador padrão na inicialização
+- Ativação/desativação de usuários
 
-### Pokemon Explorer (Optional)
-- Browse Pokémons with pagination
-- View detailed Pokémon information
-- Type, abilities, and stats display
+### Explorador de Pokemon (Opcional)
+- Navegar por Pokémon com paginação
+- Visualizar informações detalhadas do Pokémon
+- Exibição de tipos, habilidades e estatísticas
 
-## 🐳 Docker Services
+## 🐳 Serviços Docker
 
-The `docker-compose.yml` defines the following services:
+O `docker-compose.yml` define os seguintes serviços:
 
-- **mongodb**: MongoDB 7 database
-- **rabbitmq**: RabbitMQ with management UI
-- **api**: NestJS backend API
-- **weather-collector**: Python weather data collector
-- **go-worker**: Go worker for RabbitMQ
-- **frontend**: React frontend application
+- **mongodb**: Banco de dados MongoDB 7
+- **rabbitmq**: RabbitMQ com interface de gerenciamento
+- **api**: API backend NestJS
+- **weather-collector**: Coletor de dados meteorológicos Python
+- **go-worker**: Worker Go para RabbitMQ
+- **frontend**: Aplicação frontend React
 
-All services are interconnected via Docker networks and configured with appropriate dependencies.
+Todos os serviços estão interconectados via redes Docker e configurados com dependências apropriadas.
 
-## 🔧 Development
+## 🔧 Desenvolvimento
 
-### Backend Development
+### Desenvolvimento Backend
 
 ```bash
 cd backend
 npm install
-npm run start:dev  # Watch mode
-npm run build      # Production build
-npm run lint       # Lint code
+npm run start:dev  # Modo watch
+npm run build      # Build de produção
+npm run lint       # Verificar código
 ```
 
-### Frontend Development
+### Desenvolvimento Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev        # Development server
-npm run build      # Production build
-npm run lint       # Lint code
+npm run dev        # Servidor de desenvolvimento
+npm run build      # Build de produção
+npm run lint       # Verificar código
 ```
 
-### Go Worker Development
+### Desenvolvimento Worker Go
 
 ```bash
 cd go-worker
@@ -255,7 +255,7 @@ go mod download
 go run main.go
 ```
 
-### Python Service Development
+### Desenvolvimento Serviço Python
 
 ```bash
 cd weather-collector
@@ -263,12 +263,12 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## 📝 Environment Variables
+## 📝 Variáveis de Ambiente
 
-Create a `.env` file in the root directory (optional):
+Crie um arquivo `.env` no diretório raiz (opcional):
 
 ```env
-# JWT Secret
+# Segredo JWT
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 
 # MongoDB
@@ -277,131 +277,131 @@ MONGODB_URI=mongodb://admin:admin123@localhost:27017/weather_db?authSource=admin
 # RabbitMQ
 RABBITMQ_URL=amqp://admin:admin123@localhost:5672
 
-# Weather API
+# API Meteorológica
 WEATHER_API_URL=https://api.open-meteo.com/v1/forecast
 LATITUDE=23.5505
 LONGITUDE=-46.6333
 COLLECTION_INTERVAL=3600
 
-# NestJS API
+# API NestJS
 PORT=3000
 NODE_ENV=development
 
 # Frontend
 VITE_API_URL=http://localhost:3000/api
 
-# Default User
+# Usuário Padrão
 DEFAULT_USER_EMAIL=admin@example.com
 DEFAULT_USER_PASSWORD=123456
 ```
 
-## 🧪 Testing
+## 🧪 Testes
 
-### API Endpoints Testing
+### Testes de Endpoints da API
 
-Use tools like Postman, cURL, or the frontend application to test endpoints.
+Use ferramentas como Postman, cURL ou a aplicação frontend para testar endpoints.
 
-Example login:
+Exemplo de login:
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"123456"}'
 ```
 
-Example get weather logs (requires authentication):
+Exemplo de obtenção de logs meteorológicos (requer autenticação):
 ```bash
 curl -X GET http://localhost:3000/api/weather/logs \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-## 📦 Technologies Used
+## 📦 Tecnologias Utilizadas
 
 ### Backend
-- **NestJS** - Progressive Node.js framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB object modeling
-- **JWT** - Authentication
-- **ExcelJS** - Excel file generation
-- **TypeScript** - Type-safe JavaScript
+- **NestJS** - Framework Node.js progressivo
+- **MongoDB** - Banco de dados NoSQL
+- **Mongoose** - Modelagem de objetos MongoDB
+- **JWT** - Autenticação
+- **ExcelJS** - Geração de arquivos Excel
+- **TypeScript** - JavaScript com tipagem
 
 ### Frontend
-- **React** - UI library
-- **Vite** - Build tool
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS
-- **shadcn/ui** - UI components
-- **Recharts** - Chart library
-- **React Router** - Routing
+- **React** - Biblioteca UI
+- **Vite** - Ferramenta de build
+- **TypeScript** - JavaScript com tipagem
+- **Tailwind CSS** - CSS utilitário
+- **shadcn/ui** - Componentes UI
+- **Recharts** - Biblioteca de gráficos
+- **React Router** - Roteamento
 
-### Data Collection & Processing
-- **Python** - Weather data collection
-- **Go** - RabbitMQ worker
-- **RabbitMQ** - Message queue
-- **Open-Meteo API** - Weather data source
+### Coleta e Processamento de Dados
+- **Python** - Coleta de dados meteorológicos
+- **Go** - Worker RabbitMQ
+- **RabbitMQ** - Fila de mensagens
+- **API Open-Meteo** - Fonte de dados meteorológicos
 
-### Infrastructure
-- **Docker** - Containerization
-- **Docker Compose** - Multi-container orchestration
+### Infraestrutura
+- **Docker** - Containerização
+- **Docker Compose** - Orquestração multi-container
 
-## 🐛 Troubleshooting
+## 🐛 Solução de Problemas
 
-### Services not starting
-- Check Docker logs: `docker-compose logs [service-name]`
-- Ensure ports are not already in use
-- Verify Docker has enough resources allocated
+### Serviços não estão iniciando
+- Verifique os logs do Docker: `docker-compose logs [service-name]`
+- Certifique-se de que as portas não estão em uso
+- Verifique se o Docker tem recursos suficientes alocados
 
-### Database connection issues
-- Wait for MongoDB to be fully ready (may take 30-60 seconds)
-- Check MongoDB credentials in docker-compose.yml
-- Verify network connectivity between services
+### Problemas de conexão com o banco de dados
+- Aguarde o MongoDB ficar totalmente pronto (pode levar 30-60 segundos)
+- Verifique as credenciais do MongoDB no docker-compose.yml
+- Verifique a conectividade de rede entre serviços
 
-### Frontend not connecting to API
-- Ensure API is running and accessible
-- Check `VITE_API_URL` environment variable
-- Verify CORS settings in NestJS (main.ts)
+### Frontend não está conectando à API
+- Certifique-se de que a API está rodando e acessível
+- Verifique a variável de ambiente `VITE_API_URL`
+- Verifique as configurações de CORS no NestJS (main.ts)
 
-### Weather data not appearing
-- Check Python collector logs: `docker-compose logs weather-collector`
-- Verify RabbitMQ is running: `docker-compose logs rabbitmq`
-- Check Go worker logs: `docker-compose logs go-worker`
-- Ensure API is receiving data: `docker-compose logs api`
+### Dados meteorológicos não estão aparecendo
+- Verifique os logs do coletor Python: `docker-compose logs weather-collector`
+- Verifique se o RabbitMQ está rodando: `docker-compose logs rabbitmq`
+- Verifique os logs do worker Go: `docker-compose logs go-worker`
+- Certifique-se de que a API está recebendo dados: `docker-compose logs api`
 
-## 📄 License
+## 📄 Licença
 
-This project is created for educational/demonstration purposes.
+Este projeto foi criado para fins educacionais/demonstrativos.
 
-## 👤 Author
+## 👤 Autor
 
 Renan Orozco
 
 ---
 
-## 🎥 Video Demonstration
+## 🎥 Demonstração em Vídeo
 
-[Link to video will be added here]
+[Link do vídeo será adicionado aqui]
 
-The video should demonstrate:
-- Architecture overview
-- Data pipeline flow (Python → RabbitMQ → Go → NestJS → Frontend)
-- AI insights generation
-- Main features (Dashboard, Users, Pokemon)
-- Docker Compose execution
+O vídeo deve demonstrar:
+- Visão geral da arquitetura
+- Fluxo do pipeline de dados (Python → RabbitMQ → Go → NestJS → Frontend)
+- Geração de insights de IA
+- Principais funcionalidades (Dashboard, Usuários, Pokemon)
+- Execução do Docker Compose
 
 ## ✅ Checklist
 
-- ✅ Python collects weather data (Open-Meteo)
-- ✅ Python sends data to RabbitMQ
-- ✅ Go worker consumes from RabbitMQ and forwards to NestJS
-- ✅ NestJS stores data in MongoDB
-- ✅ NestJS exposes weather endpoints
-- ✅ NestJS generates AI insights
-- ✅ NestJS exports CSV/XLSX
-- ✅ NestJS implements user CRUD + authentication
-- ✅ NestJS integrates with Pokemon API (optional)
-- ✅ React frontend with Vite + Tailwind + shadcn/ui
-- ✅ Dashboard displays weather data and insights
-- ✅ User management interface
-- ✅ Pokemon explorer page
-- ✅ Docker Compose orchestrates all services
-- ✅ TypeScript in backend and frontend
-- ✅ Comprehensive README
+- ✅ Python coleta dados meteorológicos (Open-Meteo)
+- ✅ Python envia dados para RabbitMQ
+- ✅ Worker Go consome do RabbitMQ e encaminha para NestJS
+- ✅ NestJS armazena dados no MongoDB
+- ✅ NestJS expõe endpoints meteorológicos
+- ✅ NestJS gera insights de IA
+- ✅ NestJS exporta CSV/XLSX
+- ✅ NestJS implementa CRUD de usuários + autenticação
+- ✅ NestJS integra com API Pokemon (opcional)
+- ✅ Frontend React com Vite + Tailwind + shadcn/ui
+- ✅ Dashboard exibe dados meteorológicos e insights
+- ✅ Interface de gerenciamento de usuários
+- ✅ Página exploradora de Pokemon
+- ✅ Docker Compose orquestra todos os serviços
+- ✅ TypeScript no backend e frontend
+- ✅ README completo
