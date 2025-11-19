@@ -37,7 +37,8 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email: email.toLowerCase() }).exec();
+    const normalizedEmail = email.toLowerCase().trim();
+    return this.userModel.findOne({ email: normalizedEmail }).exec();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -68,24 +69,45 @@ export class UsersService {
     }
   }
 
-  async createDefaultUser(): Promise<void> {
-    const defaultEmail = process.env.DEFAULT_USER_EMAIL || 'admin@example.com';
-    const defaultPassword = process.env.DEFAULT_USER_PASSWORD || '123456';
+  async createDefaultUser(): Promise<{ created: boolean; email: string }> {
+    try {
+      const defaultEmail = (process.env.DEFAULT_USER_EMAIL || 'admin@example.com').toLowerCase().trim();
+      const defaultPassword = process.env.DEFAULT_USER_PASSWORD || '123456';
 
-    const existingUser = await this.userModel.findOne({ email: defaultEmail }).exec();
-    if (existingUser) {
-      console.log('Default user already exists');
-      return;
+      console.log(`🔍 Verificando/criando usuário padrão: ${defaultEmail}`);
+
+      // Verifica se o modelo está disponível
+      if (!this.userModel) {
+        throw new Error('Modelo de usuário não está disponível - MongoDB pode não estar conectado');
+      }
+
+      console.log(`🔍 Buscando usuário existente...`);
+      const existingUser = await this.userModel.findOne({ email: defaultEmail }).exec();
+      if (existingUser) {
+        console.log(`✅ Usuário padrão já existe: ${defaultEmail}`);
+        return { created: false, email: defaultEmail };
+      }
+
+      console.log(`🔨 Criando novo usuário padrão...`);
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      
+      const newUser = await this.userModel.create({
+        email: defaultEmail,
+        password: hashedPassword,
+        name: 'Usuário Administrador',
+        isActive: true,
+      });
+
+      console.log(`✅ Usuário padrão criado com sucesso: ${defaultEmail} (ID: ${newUser._id})`);
+      return { created: true, email: defaultEmail };
+    } catch (error: any) {
+      console.error('❌ Erro ao criar usuário padrão:', error);
+      console.error('❌ Tipo do erro:', error?.constructor?.name);
+      console.error('❌ Mensagem:', error?.message);
+      if (error?.stack) {
+        console.error('❌ Stack trace:', error.stack);
+      }
+      throw error; // Relança o erro para que o controller possa tratá-lo
     }
-
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-    await this.userModel.create({
-      email: defaultEmail,
-      password: hashedPassword,
-      name: 'Usuário Administrador',
-      isActive: true,
-    });
-
-    console.log(`Default user created: ${defaultEmail}`);
   }
 }

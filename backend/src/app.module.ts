@@ -5,6 +5,7 @@ import { WeatherModule } from './weather/weather.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { PokemonModule } from './pokemon/pokemon.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -17,5 +18,6 @@ import { PokemonModule } from './pokemon/pokemon.module';
     AuthModule,
     PokemonModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

@@ -49,6 +49,7 @@ const Dashboard = () => {
   const [latest, setLatest] = useState<WeatherLog | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -58,17 +59,37 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
+      setError(null);
       const [logsResponse, latestResponse, insightsResponse] = await Promise.all([
-        api.get('/weather/logs', { params: { page: 1, limit: 50 } }),
-        api.get('/weather/logs/latest'),
-        api.get('/weather/insights'),
+        api.get('/weather/logs', { params: { page: 1, limit: 50 } }).catch(() => ({ data: { data: [] } })),
+        api.get('/weather/logs/latest').catch(() => ({ data: null })),
+        api.get('/weather/insights').catch(() => ({ data: null })),
       ]);
 
-      setWeatherData(logsResponse.data.data.reverse());
-      setLatest(latestResponse.data);
-      setInsights(insightsResponse.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      // Trata dados de logs
+      if (logsResponse?.data?.data && Array.isArray(logsResponse.data.data)) {
+        setWeatherData([...logsResponse.data.data].reverse());
+      } else {
+        setWeatherData([]);
+      }
+
+      // Trata dados mais recentes
+      if (latestResponse?.data) {
+        setLatest(latestResponse.data);
+      } else {
+        setLatest(null);
+      }
+
+      // Trata insights
+      if (insightsResponse?.data) {
+        setInsights(insightsResponse.data);
+      } else {
+        setInsights(null);
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar dados:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao carregar dados meteorológicos';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -112,7 +133,14 @@ const Dashboard = () => {
   }));
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando dados meteorológicos...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -120,16 +148,42 @@ const Dashboard = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Painel Meteorológico</h1>
         <div className="flex gap-2">
-          <Button onClick={handleExportCSV} variant="outline">
+          <Button onClick={handleExportCSV} variant="outline" disabled={weatherData.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button onClick={handleExportXLSX} variant="outline">
+          <Button onClick={handleExportXLSX} variant="outline" disabled={weatherData.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar XLSX
           </Button>
         </div>
       </div>
+
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-800">{error}</p>
+            <Button 
+              onClick={fetchData} 
+              variant="outline" 
+              className="mt-4"
+              size="sm"
+            >
+              Tentar Novamente
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!latest && !loading && !error && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="pt-6">
+            <p className="text-yellow-800">
+              Nenhum dado meteorológico encontrado. Aguarde alguns minutos enquanto o coletor de dados está em execução.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {latest && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

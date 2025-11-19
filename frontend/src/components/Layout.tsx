@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Cloud, Users, Pokemon } from 'lucide-react';
+import { Cloud, Users, Sparkles } from 'lucide-react';
 
 const Layout = () => {
   const { logout } = useAuth();
@@ -10,7 +10,7 @@ const Layout = () => {
   const navigation = [
     { name: 'Painel', href: '/', icon: Cloud },
     { name: 'Usuários', href: '/users', icon: Users },
-    { name: 'Pokémon', href: '/pokemon', icon: Pokemon },
+    { name: 'Pokémon', href: '/pokemon', icon: Sparkles },
   ];
 
   return (

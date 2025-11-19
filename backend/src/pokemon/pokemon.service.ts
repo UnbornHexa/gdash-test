@@ -20,7 +20,7 @@ export class PokemonService {
             id: pokemonId,
             name: pokemon.name,
             url: pokemon.url,
-            image: details.sprites?.front_default,
+            image: details.sprites?.frontDefault,
             types: details.types?.map((t: any) => t.type.name),
           };
         }),
