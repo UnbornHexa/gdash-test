@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7
+    container_name: weather-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: weather_db
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - weather-network
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: weather-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - weather-network
+
+  # NestJS API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: weather-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/weather_db?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - weather-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Python Weather Collector
+  weather-collector:
+    build:
+      context: ./weather-collector
+      dockerfile: Dockerfile
+    container_name: weather-collector
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      WEATHER_API_URL: https://api.open-meteo.com/v1/forecast
+      LATITUDE: ${LATITUDE:-23.5505}
+      LONGITUDE: ${LONGITUDE:-46.6333}
+      COLLECTION_INTERVAL: ${COLLECTION_INTERVAL:-3600}
+    depends_on:
+      - rabbitmq
+    networks:
+      - weather-network
+    volumes:
+      - ./weather-collector:/app
+
+  # Go Worker
+  go-worker:
+    build:
+      context: ./go-worker
+      dockerfile: Dockerfile
+    container_name: weather-go-worker
+    restart: unless-stopped
+    environment:
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      API_URL: http://api:3000/api/weather/logs
+    depends_on:
+      - rabbitmq
+      - api
+    networks:
+      - weather-network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: weather-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    depends_on:
+      - api
+    networks:
+      - weather-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
+
+networks:
+  weather-network:
+    driver: bridge
