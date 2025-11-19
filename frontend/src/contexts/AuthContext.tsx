@@ -5,6 +5,10 @@ interface User {
   id: string;
   email: string;
   name?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 interface AuthContextType {
@@ -12,6 +16,7 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -47,6 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
+  const updateUser = async () => {
+    try {
+      const response = await api.get('/users/profile/me');
+      const userData = response.data;
+      setUser({
+        id: userData._id || userData.id,
+        email: userData.email,
+        name: userData.name,
+        location: userData.location,
+      });
+      localStorage.setItem('user', JSON.stringify({
+        id: userData._id || userData.id,
+        email: userData.email,
+        name: userData.name,
+        location: userData.location,
+      }));
+    } catch (error) {
+      console.error('Erro ao atualizar perfil do usuário:', error);
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -61,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         login,
         logout,
+        updateUser,
         isAuthenticated: !!token,
       }}
     >

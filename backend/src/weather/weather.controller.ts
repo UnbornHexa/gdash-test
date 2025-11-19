@@ -15,6 +15,7 @@ import { Response } from 'express';
 import { WeatherService } from './weather.service';
 import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import { QueryWeatherLogsDto } from './dto/query-weather-logs.dto';
+import { FetchWeatherDto } from './dto/fetch-weather.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('weather')
@@ -75,5 +76,17 @@ export class WeatherController {
   async remove(@Param('id') id: string) {
     await this.weatherService.remove(id);
     return { message: 'Registro meteorológico excluído com sucesso' };
+  }
+
+  @Get('current')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentWeather(@Query() query: FetchWeatherDto) {
+    return this.weatherService.fetchCurrentWeather(query.latitude, query.longitude);
+  }
+
+  @Get('location')
+  @UseGuards(JwtAuthGuard)
+  async getLocation(@Query() query: FetchWeatherDto) {
+    return this.weatherService.reverseGeocode(query.latitude, query.longitude);
   }
 }

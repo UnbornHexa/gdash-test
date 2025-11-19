@@ -69,6 +69,16 @@ export class UsersService {
     }
   }
 
+  async updateLocation(userId: string, location: { latitude: number; longitude: number }): Promise<User> {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    user.location = location;
+    return user.save();
+  }
+
   async createDefaultUser(): Promise<{ created: boolean; email: string }> {
     try {
       const defaultEmail = (process.env.DEFAULT_USER_EMAIL || 'admin@example.com').toLowerCase().trim();

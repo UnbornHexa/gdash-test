@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import axios from 'axios';
 import { WeatherLog } from './schemas/weather-log.schema';
 import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import { QueryWeatherLogsDto } from './dto/query-weather-logs.dto';
+import { FetchWeatherDto } from './dto/fetch-weather.dto';
 import { InsightsService } from './insights.service';
 import * as ExcelJS from 'exceljs';
 
@@ -151,5 +153,140 @@ export class WeatherService {
 
   async remove(id: string): Promise<void> {
     await this.weatherLogModel.findByIdAndDelete(id).exec();
+  }
+
+  async fetchCurrentWeather(latitude: number, longitude: number) {
+    try {
+      const weatherApiUrl = 'https://api.open-meteo.com/v1/forecast';
+      
+      const params = {
+        latitude,
+        longitude,
+        current: [
+          'temperature_2m',
+          'relative_humidity_2m',
+          'wind_speed_10m',
+          'weather_code',
+          'precipitation',
+        ],
+        hourly: [
+          'temperature_2m',
+          'relative_humidity_2m',
+          'wind_speed_10m',
+          'weather_code',
+          'precipitation_probability',
+        ],
+        timezone: 'America/Sao_Paulo',
+      };
+
+      const response = await axios.get(weatherApiUrl, { params, timeout: 10000 });
+      const data = response.data;
+
+      // Mapeia código meteorológico para condição
+      const weatherCodes: { [key: number]: string } = {
+        0: 'clear',
+        1: 'mainly_clear',
+        2: 'partly_cloudy',
+        3: 'overcast',
+        45: 'foggy',
+        48: 'depositing_rime_fog',
+        51: 'light_drizzle',
+        53: 'moderate_drizzle',
+        55: 'dense_drizzle',
+        56: 'light_freezing_drizzle',
+        57: 'dense_freezing_drizzle',
+        61: 'slight_rain',
+        63: 'moderate_rain',
+        65: 'heavy_rain',
+        66: 'light_freezing_rain',
+        67: 'heavy_freezing_rain',
+        71: 'slight_snow',
+        73: 'moderate_snow',
+        75: 'heavy_snow',
+        77: 'snow_grains',
+        80: 'slight_rain_showers',
+        81: 'moderate_rain_showers',
+        82: 'violent_rain_showers',
+        85: 'slight_snow_showers',
+        86: 'heavy_snow_showers',
+        95: 'thunderstorm',
+        96: 'thunderstorm_with_slight_hail',
+        99: 'thunderstorm_with_heavy_hail',
+      };
+
+      const current = data.current || {};
+      const weatherCode = current.weather_code || 0;
+
+      return {
+        timestamp: new Date().toISOString(),
+        location: {
+          latitude,
+          longitude,
+        },
+        current: {
+          temperature: current.temperature_2m || null,
+          humidity: current.relative_humidity_2m || null,
+          windSpeed: current.wind_speed_10m || null,
+          weatherCode: weatherCode,
+          condition: weatherCodes[weatherCode] || 'unknown',
+          precipitation: current.precipitation || 0,
+        },
+        forecast: data.hourly
+          ? {
+              time: data.hourly.time?.slice(0, 24) || [],
+              temperature: data.hourly.temperature_2m?.slice(0, 24) || [],
+              humidity: data.hourly.relative_humidity_2m?.slice(0, 24) || [],
+              windSpeed: data.hourly.wind_speed_10m?.slice(0, 24) || [],
+              weatherCode: data.hourly.weather_code?.slice(0, 24) || [],
+              precipitationProbability: data.hourly.precipitation_probability?.slice(0, 24) || [],
+            }
+          : undefined,
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar dados meteorológicos:', error);
+      throw new HttpException(
+        'Erro ao buscar dados meteorológicos da API',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async reverseGeocode(latitude: number, longitude: number): Promise<{ city: string; state: string; country: string } | null> {
+    try {
+      // Usa Nominatim (OpenStreetMap) para geocodificação reversa
+      const nominatimUrl = 'https://nominatim.openstreetmap.org/reverse';
+      const params = {
+        lat: latitude,
+        lon: longitude,
+        format: 'json',
+        addressdetails: 1,
+        'accept-language': 'pt-BR,pt,en',
+      };
+
+      const response = await axios.get(nominatimUrl, {
+        params,
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'WeatherApp/1.0', // Nominatim requer User-Agent
+        },
+      });
+
+      const data = response.data;
+      if (!data || !data.address) {
+        return null;
+      }
+
+      const address = data.address;
+      
+      // Extrai cidade, estado e país
+      const city = address.city || address.town || address.village || address.municipality || address.county || 'Localização desconhecida';
+      const state = address.state || address.region || address.province || '';
+      const country = address.country || '';
+
+      return { city, state, country };
+    } catch (error: any) {
+      console.error('Erro ao fazer geocodificação reversa:', error);
+      return null;
+    }
   }
 }

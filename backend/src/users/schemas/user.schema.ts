@@ -14,6 +14,17 @@ export class User extends Document {
 
   @Prop()
   name?: string;
+
+  @Prop({
+    type: {
+      latitude: Number,
+      longitude: Number,
+    },
+  })
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

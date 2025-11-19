@@ -29,7 +29,9 @@ export class InsightsService {
     const olderTemps = temperatures.slice(Math.min(10, temperatures.length));
     const recentAvg = this.calculateAverage(recentTemps);
     const olderAvg = olderTemps.length > 0 ? this.calculateAverage(olderTemps) : recentAvg;
-    const temperatureTrend = recentAvg > olderAvg ? 'subindo' : recentAvg < olderAvg ? 'descendo' : 'estável';
+    const temperatureTrend = this.capitalizeFirst(
+      recentAvg > olderAvg ? 'subindo' : recentAvg < olderAvg ? 'descendo' : 'estável'
+    );
 
     // Índice de conforto (0-100)
     const comfortIndex = this.calculateComfortIndex(avgTemperature, avgHumidity, avgWindSpeed);
@@ -171,13 +173,18 @@ export class InsightsService {
     const days = Math.ceil(logs.length / 24);
     const latest = logs[0];
     
-    let summary = `Resumo do clima dos últimos ${days} dia(s): `;
-    summary += `Temperatura média ${avgTemp.toFixed(1)}°C com tendência ${trend}. `;
-    summary += `Condições atuais: ${latest.current.temperature.toFixed(1)}°C, `;
-    summary += `${latest.current.humidity.toFixed(0)}% de umidade, `;
-    summary += `${latest.current.windSpeed.toFixed(1)} km/h de velocidade do vento. `;
-    summary += `Classificação geral: ${this.classifyWeather(avgTemp, avgHumidity, logs.map(l => l.current.condition))}.`;
+    // Separa cada seção em uma linha diferente usando ponto e vírgula como separador
+    const items: string[] = [];
+    
+    items.push(`Resumo do clima dos últimos ${days} dia(s): Temperatura média ${avgTemp.toFixed(1)}°C com tendência ${trend}`);
+    items.push(`Condições atuais: ${latest.current.temperature.toFixed(1)}°C, ${latest.current.humidity.toFixed(0)}% de umidade, ${latest.current.windSpeed.toFixed(1)} km/h de velocidade do vento`);
+    items.push(`Classificação geral: ${this.classifyWeather(avgTemp, avgHumidity, logs.map(l => l.current.condition))}`);
 
-    return summary;
+    return items.join(' | ');
+  }
+
+  private capitalizeFirst(text: string): string {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   }
 }
