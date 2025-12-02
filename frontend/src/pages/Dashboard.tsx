@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Download, Cloud, Droplets, Wind, Thermometer, MapPin } from 'lucide-react';
+import { Download, Cloud, Droplets, Wind, Thermometer, MapPin, AlertTriangle, Info, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface WeatherLog {
   _id: string;
@@ -20,6 +20,20 @@ interface WeatherLog {
     condition: string;
     precipitation: number;
   };
+}
+
+interface AlertCard {
+  type: 'info' | 'warning' | 'danger' | 'success';
+  title: string;
+  message: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+interface StatusCard {
+  type: 'extreme_heat' | 'comfortable' | 'cold' | 'rainy' | 'windy' | 'normal';
+  title: string;
+  description: string;
+  icon: string;
 }
 
 interface Insights {
@@ -41,6 +55,9 @@ interface Insights {
   };
   classification: string;
   alerts: string[];
+  alertCards?: AlertCard[];
+  statusCards?: StatusCard[];
+  explanatoryText?: string[];
   summary: string;
   generatedAt: string;
 }
@@ -238,10 +255,15 @@ const Dashboard = () => {
         },
       }).catch(() => ({ data: null }));
 
-      // Busca histórico de logs
+      // Busca histórico de logs e insights (com coordenadas para previsões)
       const [logsResponse, insightsResponse] = await Promise.all([
         api.get('/weather/logs', { params: { page: 1, limit: 50 } }).catch(() => ({ data: { data: [] } })),
-        api.get('/weather/insights').catch(() => ({ data: null })),
+        api.get('/weather/insights', {
+          params: {
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          },
+        }).catch(() => ({ data: null })),
       ]);
 
       // Usa dados em tempo real se disponível, senão usa o último log
@@ -448,51 +470,180 @@ const Dashboard = () => {
       )}
 
       {insights && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Análise e previsões</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-2">
-            <div>
-              <div className="space-y-1">
-                {formatSummary(insights.summary)}
-              </div>
+        <>
+          {/* Cards de Status */}
+          {insights.statusCards && insights.statusCards.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {insights.statusCards.map((statusCard, index) => {
+                const getStatusCardColors = (type: string) => {
+                  switch (type) {
+                    case 'extreme_heat':
+                      return 'border-red-300 bg-red-50';
+                    case 'cold':
+                      return 'border-blue-300 bg-blue-50';
+                    case 'comfortable':
+                      return 'border-green-300 bg-green-50';
+                    case 'rainy':
+                      return 'border-gray-300 bg-gray-50';
+                    case 'windy':
+                      return 'border-yellow-300 bg-yellow-50';
+                    default:
+                      return 'border-gray-200 bg-gray-50';
+                  }
+                };
+
+                return (
+                  <Card key={index} className={getStatusCardColors(statusCard.type)}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="text-2xl">{statusCard.icon}</span>
+                        {statusCard.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{statusCard.description}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Índice de Conforto</p>
-                <p className="text-2xl font-bold">{insights.comfort.index}</p>
-                <p className="text-xs text-muted-foreground">{insights.comfort.level}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Classificação</p>
-                <p className="text-2xl font-bold">{insights.classification}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Tendência de Temperatura</p>
-                <p className="text-2xl font-bold">{insights.trends.temperature}</p>
-                <p className="text-xs text-muted-foreground">
-                  {insights.trends.temperatureChange > 0 ? '+' : ''}
-                  {insights.trends.temperatureChange.toFixed(1)}°C
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Temp. Média</p>
-                <p className="text-2xl font-bold">{insights.statistics.averageTemperature.toFixed(1)}°C</p>
-              </div>
+          )}
+
+          {/* Textos Explicativos */}
+          {insights.explanatoryText && insights.explanatoryText.length > 0 && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-900">
+                  <Info className="h-5 w-5" />
+                  Análise Detalhada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {insights.explanatoryText.map((text, index) => (
+                  <p key={index} className="text-sm text-blue-800">
+                    {text}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cards de Alerta */}
+          {insights.alertCards && insights.alertCards.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {insights.alertCards.map((alertCard, index) => {
+                const getAlertCardStyles = (type: string) => {
+                  switch (type) {
+                    case 'danger':
+                      return {
+                        border: 'border-red-300',
+                        bg: 'bg-red-50',
+                        iconColor: 'text-red-600',
+                        textColor: 'text-red-800',
+                        icon: <AlertCircle className="h-5 w-5" />,
+                      };
+                    case 'warning':
+                      return {
+                        border: 'border-orange-300',
+                        bg: 'bg-orange-50',
+                        iconColor: 'text-orange-600',
+                        textColor: 'text-orange-800',
+                        icon: <AlertTriangle className="h-5 w-5" />,
+                      };
+                    case 'info':
+                      return {
+                        border: 'border-blue-300',
+                        bg: 'bg-blue-50',
+                        iconColor: 'text-blue-600',
+                        textColor: 'text-blue-800',
+                        icon: <Info className="h-5 w-5" />,
+                      };
+                    case 'success':
+                      return {
+                        border: 'border-green-300',
+                        bg: 'bg-green-50',
+                        iconColor: 'text-green-600',
+                        textColor: 'text-green-800',
+                        icon: <CheckCircle className="h-5 w-5" />,
+                      };
+                    default:
+                      return {
+                        border: 'border-gray-300',
+                        bg: 'bg-gray-50',
+                        iconColor: 'text-gray-600',
+                        textColor: 'text-gray-800',
+                        icon: <Info className="h-5 w-5" />,
+                      };
+                  }
+                };
+
+                const styles = getAlertCardStyles(alertCard.type);
+
+                return (
+                  <Card key={index} className={`${styles.border} ${styles.bg}`}>
+                    <CardHeader>
+                      <CardTitle className={`flex items-center gap-2 ${styles.textColor}`}>
+                        <span className={styles.iconColor}>{styles.icon}</span>
+                        {alertCard.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className={`text-sm ${styles.textColor}`}>{alertCard.message}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-            {insights.alerts.length > 0 && (
+          )}
+
+          {/* Card Principal de Insights */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Análise e previsões</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-2">
               <div>
-                <h3 className="font-semibold mb-2">Alertas</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  {insights.alerts.map((alert, index) => (
-                    <li key={index} className="text-sm text-orange-600">{alert}</li>
-                  ))}
-                </ul>
+                <div className="space-y-1">
+                  {formatSummary(insights.summary)}
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Índice de Conforto</p>
+                  <p className="text-2xl font-bold">{insights.comfort.index}</p>
+                  <p className="text-xs text-muted-foreground">{insights.comfort.level}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Classificação</p>
+                  <p className="text-2xl font-bold">{insights.classification}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tendência de Temperatura</p>
+                  <p className="text-2xl font-bold">{insights.trends.temperature}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {insights.trends.temperatureChange > 0 ? '+' : ''}
+                    {insights.trends.temperatureChange.toFixed(1)}°C
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Temp. Média</p>
+                  <p className="text-2xl font-bold">{insights.statistics.averageTemperature.toFixed(1)}°C</p>
+                </div>
+              </div>
+              {/* Mantém alertas antigos se os novos cards não estiverem disponíveis */}
+              {insights.alerts && insights.alerts.length > 0 && (!insights.alertCards || insights.alertCards.length === 0) && (
+                <div>
+                  <h3 className="font-semibold mb-2">Alertas</h3>
+                  <ul className="list-disc list-inside space-y-1">
+                    {insights.alerts.map((alert, index) => (
+                      <li key={index} className="text-sm text-orange-600">{alert}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {chartData.length > 0 && (
