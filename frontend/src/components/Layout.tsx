@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Cloud, Users, Sparkles } from 'lucide-react';
@@ -6,6 +6,12 @@ import { Cloud, Users, Sparkles } from 'lucide-react';
 const Layout = () => {
   const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const navigation = [
     { name: 'Painel', href: '/', icon: Cloud },
@@ -45,7 +51,7 @@ const Layout = () => {
               </div>
             </div>
             <div className="flex items-center">
-              <Button onClick={logout} variant="outline">
+              <Button onClick={handleLogout} variant="outline">
                 Sair
               </Button>
             </div>

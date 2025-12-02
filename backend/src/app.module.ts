@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ScheduleModule } from '@nestjs/schedule';
 import { WeatherModule } from './weather/weather.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -13,7 +12,6 @@ import { HealthController } from './health/health.controller';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ScheduleModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://admin:admin123@localhost:27017/weather_db?authSource=admin'),
     WeatherModule,
     UsersModule,

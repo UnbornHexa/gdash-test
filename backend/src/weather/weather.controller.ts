@@ -30,23 +30,7 @@ export class WeatherController {
 
   @Get('logs')
   @UseGuards(JwtAuthGuard)
-  async findAll(@Query() query: QueryWeatherLogsDto, @Query('latitude') latitude?: string, @Query('longitude') longitude?: string) {
-    // Se coordenadas forem fornecidas, garante dados históricos em background
-    if (latitude && longitude) {
-      try {
-        const lat = parseFloat(latitude);
-        const lon = parseFloat(longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          // Garante dados históricos sem bloquear a resposta
-          this.weatherService.ensureHistoricalData(lat, lon, 3).catch((error) => {
-            console.error('Erro ao garantir dados históricos:', error);
-          });
-        }
-      } catch (error) {
-        // Ignora erros silenciosamente
-      }
-    }
-    
+  async findAll(@Query() query: QueryWeatherLogsDto) {
     return this.weatherService.findAll(query);
   }
 
@@ -64,35 +48,9 @@ export class WeatherController {
 
   @Get('insights')
   @UseGuards(JwtAuthGuard)
-  async getInsights(
-    @Query('limit') limit?: string,
-    @Query('latitude') latitude?: string,
-    @Query('longitude') longitude?: string,
-  ) {
+  async getInsights(@Query('limit') limit?: string) {
     const limitNum = limit ? parseInt(limit, 10) : 50;
-    let currentWeather = null;
-    
-    // Se coordenadas forem fornecidas, busca dados atuais com forecast e garante dados históricos
-    if (latitude && longitude) {
-      try {
-        const lat = parseFloat(latitude);
-        const lon = parseFloat(longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          // Garante que há dados históricos dos últimos 3 dias (em background, não bloqueia)
-          this.weatherService.ensureHistoricalData(lat, lon, 3).catch((error) => {
-            console.error('Erro ao garantir dados históricos:', error);
-          });
-          
-          // Busca dados atuais com forecast
-          currentWeather = await this.weatherService.fetchCurrentWeather(lat, lon);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar clima atual para insights:', error);
-        // Continua mesmo se falhar
-      }
-    }
-    
-    return this.weatherService.generateInsights(limitNum, currentWeather);
+    return this.weatherService.generateInsights(limitNum);
   }
 
   @Get('export/csv')

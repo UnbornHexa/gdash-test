@@ -366,6 +366,51 @@ curl -X GET http://localhost:3000/api/weather/logs \
 - Verifique os logs do worker Go: `docker-compose logs go-worker`
 - Certifique-se de que a API está recebendo dados: `docker-compose logs api`
 
+### Problemas ao construir imagens Docker (timeout, erro de conexão)
+
+Se você encontrar erros como `TLS handshake timeout` ou `failed to resolve source metadata` ao construir as imagens:
+
+**Solução 1: Pull manual das imagens base**
+```bash
+# Baixe as imagens base manualmente antes de construir
+docker pull node:20-alpine
+docker pull mongo:7
+docker pull rabbitmq:3-management
+docker pull golang:1.21-alpine
+docker pull alpine:latest
+docker pull python:3.11-slim
+
+# Depois tente construir novamente
+docker-compose build
+```
+
+**Solução 2: Verificar conectividade com Docker Hub**
+```bash
+# Teste a conectividade com Docker Hub
+curl -I https://registry-1.docker.io/v2/
+
+# Verifique as configurações de DNS do Docker
+docker info | grep -i dns
+```
+
+**Solução 3: Reconstruir apenas o serviço com problema**
+```bash
+# Se apenas um serviço falhar, reconstrua apenas ele
+docker-compose build frontend  # ou api, go-worker, etc.
+```
+
+**Solução 4: Limpar cache e tentar novamente**
+```bash
+# Limpe o cache de build do Docker e tente novamente
+docker builder prune -f
+docker-compose build --no-cache
+```
+
+**Solução 5: Configurar mirror registry (se disponível)**
+Se você estiver em uma região com acesso limitado ao Docker Hub, configure um mirror registry no arquivo `/etc/docker/daemon.json` (Linux) ou nas configurações do Docker Desktop (Windows/Mac).
+
+**Nota**: Os erros de timeout geralmente são temporários e relacionados à conectividade de rede. Aguarde alguns minutos e tente novamente.
+
 ## 📄 Licença
 
 Este projeto foi criado para fins educacionais/demonstrativos.
