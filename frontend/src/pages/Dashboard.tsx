@@ -369,8 +369,41 @@ const Dashboard = () => {
     }
   };
 
+  // Função para formatar data/hora de forma inteligente
+  const formatChartLabel = (timestamp: string, showDate: boolean) => {
+    const date = new Date(timestamp);
+    if (showDate) {
+      // Mostra data curta e horário quando há múltiplos dias
+      return date.toLocaleString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } else {
+      // Mostra apenas horário quando todos são do mesmo dia
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+  };
+
+  // Verifica se há dados de múltiplos dias
+  const hasMultipleDays = (() => {
+    if (weatherData.length === 0) return false;
+    const firstDay = new Date(weatherData[0].timestamp).toDateString();
+    const lastDay = new Date(weatherData[weatherData.length - 1].timestamp).toDateString();
+    return firstDay !== lastDay;
+  })();
+
   const chartData = weatherData.map((log) => ({
-    time: new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    time: formatChartLabel(log.timestamp, hasMultipleDays),
+    fullDateTime: new Date(log.timestamp).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    timestamp: log.timestamp,
     temperature: log.current.temperature,
     humidity: log.current.humidity,
     windSpeed: log.current.windSpeed,
@@ -589,9 +622,22 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
+                  <XAxis 
+                    dataKey="time" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={hasMultipleDays ? 100 : 60}
+                    interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                  />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip 
+                    labelFormatter={(value: any, payload: any[]) => {
+                      if (payload && payload.length > 0 && payload[0].payload) {
+                        return payload[0].payload.fullDateTime || value;
+                      }
+                      return value;
+                    }}
+                  />
                   <Legend />
                   <Line type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperatura (°C)" />
                   <Line type="monotone" dataKey="humidity" stroke="#82ca9d" name="Umidade (%)" />
@@ -609,9 +655,22 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
+                  <XAxis 
+                    dataKey="time" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={hasMultipleDays ? 100 : 60}
+                    interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                  />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip 
+                    labelFormatter={(value: any, payload: any[]) => {
+                      if (payload && payload.length > 0 && payload[0].payload) {
+                        return payload[0].payload.fullDateTime || value;
+                      }
+                      return value;
+                    }}
+                  />
                   <Legend />
                   <Bar dataKey="windSpeed" fill="#8884d8" name="Velocidade do Vento (km/h)" />
                 </BarChart>
