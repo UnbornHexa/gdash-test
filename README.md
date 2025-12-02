@@ -58,6 +58,12 @@ docker-compose up -d
 
 Coleta dados meteorológicos da API Open-Meteo a cada hora (configurável) e publica na fila RabbitMQ.
 
+**⚠️ Importante sobre dados históricos:**
+- A API Open-Meteo fornece apenas dados **atuais** e **previsões futuras**
+- **Não é possível** recuperar dados históricos de horas/dias anteriores se o sistema não estava coletando no momento
+- Os dados históricos disponíveis são **apenas os que foram coletados** desde que o sistema está rodando
+- Para ter um histórico completo, o sistema precisa estar rodando continuamente
+
 **Variáveis de Ambiente**:
 - `RABBITMQ_URL`: URL de conexão do RabbitMQ
 - `WEATHER_API_URL`: URL da API Open-Meteo (padrão: https://api.open-meteo.com/v1/forecast)
@@ -365,6 +371,12 @@ curl -X GET http://localhost:3000/api/weather/logs \
 - Verifique se o RabbitMQ está rodando: `docker-compose logs rabbitmq`
 - Verifique os logs do worker Go: `docker-compose logs go-worker`
 - Certifique-se de que a API está recebendo dados: `docker-compose logs api`
+
+### Por que não vejo dados de horas/dias anteriores?
+- A API Open-Meteo **não fornece dados históricos** do passado
+- Apenas dados coletados desde que o sistema está rodando estarão disponíveis
+- Se o sistema ficou parado, não haverá dados do período parado
+- **Solução**: Mantenha o sistema rodando continuamente para construir um histórico completo
 
 ### Problemas ao construir imagens Docker (timeout, erro de conexão)
 

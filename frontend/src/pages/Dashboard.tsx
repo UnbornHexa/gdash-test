@@ -238,25 +238,89 @@ const Dashboard = () => {
         },
       }).catch(() => ({ data: null }));
 
-      // Busca histórico de logs
-      const [logsResponse, insightsResponse] = await Promise.all([
-        api.get('/weather/logs', { params: { page: 1, limit: 50 } }).catch(() => ({ data: { data: [] } })),
-        api.get('/weather/insights').catch(() => ({ data: null })),
+      // Busca TODOS os dados históricos usando paginação
+      const fetchAllLogs = async () => {
+        let allLogs: WeatherLog[] = [];
+        let page = 1;
+        const limit = 100; // Busca 100 por vez
+        let hasMore = true;
+
+        console.log('🔍 Iniciando busca de dados históricos...');
+
+        while (hasMore) {
+          try {
+            const response = await api.get('/weather/logs', { 
+              params: { page, limit } 
+            });
+            
+            console.log(`📄 Página ${page}:`, {
+              dados: response?.data?.data?.length || 0,
+              total: response?.data?.meta?.total || 0,
+              totalPages: response?.data?.meta?.totalPages || 0,
+            });
+            
+            if (response?.data?.data && Array.isArray(response.data.data)) {
+              const pageLogs = response.data.data;
+              allLogs = [...allLogs, ...pageLogs];
+              
+              // Verifica se há mais páginas ou se ainda há dados para buscar
+              const total = response.data.meta?.total || 0;
+              const totalPages = response.data.meta?.totalPages || 1;
+              
+              // Continua se houver mais páginas OU se não recebeu dados suficientes
+              hasMore = page < totalPages && pageLogs.length > 0;
+              page++;
+              
+              // Se chegou no total, para
+              if (allLogs.length >= total) {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          } catch (err) {
+            console.error('❌ Erro ao buscar página de logs:', err);
+            hasMore = false;
+          }
+        }
+
+        console.log(`✅ Total de logs carregados: ${allLogs.length}`);
+        if (allLogs.length > 0) {
+          const oldest = allLogs[allLogs.length - 1];
+          const newest = allLogs[0];
+          console.log('📅 Período:', {
+            maisAntigo: new Date(oldest.timestamp).toLocaleString('pt-BR'),
+            maisRecente: new Date(newest.timestamp).toLocaleString('pt-BR'),
+          });
+        }
+
+        return allLogs;
+      };
+
+      // Busca insights e todos os logs em paralelo
+      // Passa um limite muito alto para insights usar todos os dados históricos
+      const [allLogs, insightsResponse] = await Promise.all([
+        fetchAllLogs(),
+        api.get('/weather/insights', { params: { limit: 10000 } }).catch(() => ({ data: null })),
       ]);
 
       // Usa dados em tempo real se disponível, senão usa o último log
       if (currentWeatherResponse?.data) {
         setLatest(currentWeatherResponse.data as WeatherLog);
-      } else if (logsResponse?.data?.data && logsResponse.data.data.length > 0) {
-        setLatest(logsResponse.data.data[0]);
+      } else if (allLogs.length > 0) {
+        setLatest(allLogs[0]); // O primeiro é o mais recente (já ordenado por timestamp desc)
       } else {
         setLatest(null);
       }
 
-      // Trata dados de logs
-      if (logsResponse?.data?.data && Array.isArray(logsResponse.data.data)) {
-        setWeatherData([...logsResponse.data.data].reverse());
+      // Trata dados de logs - inverte para mostrar do mais antigo ao mais recente no gráfico
+      // IMPORTANTE: Mostra TODOS os dados históricos, independente da localização
+      if (allLogs.length > 0) {
+        console.log(`📊 Preparando ${allLogs.length} registros para exibição`);
+        const sortedLogs = [...allLogs].reverse(); // Do mais antigo ao mais recente
+        setWeatherData(sortedLogs);
       } else {
+        console.warn('⚠️ Nenhum log encontrado no banco de dados');
         setWeatherData([]);
       }
 
@@ -399,6 +463,25 @@ const Dashboard = () => {
         </Card>
       )}
 
+      {weatherData.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <p className="text-blue-800 text-sm">
+              <strong>ℹ️ Informação:</strong> Exibindo <strong>{weatherData.length}</strong> registro(s) meteorológico(s) coletado(s).
+              {weatherData.length > 0 && (
+                <span>
+                  {' '}Período: {new Date(weatherData[0].timestamp).toLocaleString('pt-BR')} até {new Date(weatherData[weatherData.length - 1].timestamp).toLocaleString('pt-BR')}
+                </span>
+              )}
+              <br />
+              <span className="text-xs text-blue-700 mt-2 block">
+                <strong>Nota:</strong> A API Open-Meteo fornece apenas dados atuais e previsões. Os dados históricos disponíveis são apenas os que foram coletados desde que o sistema está rodando. Para construir um histórico completo, mantenha o sistema rodando continuamente.
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {latest && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
@@ -500,7 +583,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Tendências de Temperatura e Umidade</CardTitle>
-              <CardDescription>Últimos 50 pontos de dados</CardDescription>
+              <CardDescription>{chartData.length} pontos de dados históricos</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -520,7 +603,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Velocidade do Vento</CardTitle>
-              <CardDescription>Últimos 50 pontos de dados</CardDescription>
+              <CardDescription>{chartData.length} pontos de dados históricos</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
