@@ -392,6 +392,7 @@ const Dashboard = () => {
     return {
       time: formatChartLabel(log.timestamp),
       timeOnly: formatChartLabel(log.timestamp), // Mantém apenas horário para o eixo X
+      uniqueKey: `${log.timestamp}-${index}`, // Chave única para identificar cada ponto
       fullDateTime: currentDate.toLocaleString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
@@ -409,6 +410,7 @@ const Dashboard = () => {
         month: '2-digit',
         year: 'numeric'
       }) : null,
+      chartIndex: index, // Índice no array para referência única
     };
   });
 
@@ -423,6 +425,8 @@ const Dashboard = () => {
   });
 
   // Identifica os pontos onde há mudança de dia para criar linhas divisórias
+  // CRÍTICO: Usa o timestamp completo como identificador único para evitar conflitos
+  // quando múltiplos pontos têm o mesmo horário em dias diferentes
   const dayDividers = chartData
     .map((item, index) => ({
       ...item,
@@ -430,9 +434,30 @@ const Dashboard = () => {
     }))
     .filter(item => item.isNewDay)
     .map(item => ({
-      x: item.time,
-      label: item.dayStart
+      // Usa uniqueKey que combina timestamp e índice para garantir unicidade
+      // Isso evita que linhas apareçam em múltiplos pontos com mesmo horário
+      x: item.uniqueKey, // Usa chave única em vez de apenas horário
+      label: item.dayStart,
+      chartIndex: item.chartIndex
     }));
+
+  // Para gráficos de barra, posiciona as linhas ANTES do primeiro ponto do novo dia
+  const dayDividersForBarChart = chartData
+    .map((item, index) => ({
+      ...item,
+      index
+    }))
+    .filter(item => item.isNewDay && item.index > 0)
+    .map(item => {
+      // Para gráfico de barras, usa a chave única do último ponto do dia anterior
+      // para que a linha apareça ANTES da primeira barra do novo dia
+      const prevItem = chartData[item.index - 1];
+      return {
+        x: prevItem.uniqueKey, // Usa chave única para evitar conflitos
+        label: item.dayStart,
+        chartIndex: item.chartIndex
+      };
+    });
 
   if (loading) {
     return (
@@ -648,7 +673,8 @@ const Dashboard = () => {
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
-                    dataKey="time" 
+                    dataKey="uniqueKey"
+                    type="category"
                     angle={-45}
                     textAnchor="end"
                     height={hasMultipleDays ? 120 : 60}
@@ -658,7 +684,9 @@ const Dashboard = () => {
                       if (index !== undefined && xAxisLabels[index]) {
                         return xAxisLabels[index];
                       }
-                      return value;
+                      // Se não encontrar no array de labels, busca o item correspondente
+                      const item = chartData.find(d => d.uniqueKey === value);
+                      return item ? item.timeOnly : value;
                     }}
                   />
                   <YAxis />
@@ -697,7 +725,8 @@ const Dashboard = () => {
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
-                    dataKey="time" 
+                    dataKey="uniqueKey"
+                    type="category"
                     angle={-45}
                     textAnchor="end"
                     height={hasMultipleDays ? 120 : 60}
@@ -707,7 +736,9 @@ const Dashboard = () => {
                       if (index !== undefined && xAxisLabels[index]) {
                         return xAxisLabels[index];
                       }
-                      return value;
+                      // Se não encontrar no array de labels, busca o item correspondente
+                      const item = chartData.find(d => d.uniqueKey === value);
+                      return item ? item.timeOnly : value;
                     }}
                   />
                   <YAxis />
@@ -720,21 +751,13 @@ const Dashboard = () => {
                     }}
                   />
                   <Legend />
-                  {dayDividers.map((divider, index) => (
+                  {dayDividersForBarChart.map((divider, index) => (
                     <ReferenceLine 
                       key={`divider-bar-${index}`}
                       x={divider.x} 
                       stroke="#999" 
                       strokeWidth={2.5}
                       strokeDasharray="0"
-                      label={{ 
-                        value: divider.label || "", 
-                        position: "insideTopLeft", 
-                        fill: "#555", 
-                        fontSize: 10,
-                        fontWeight: "600",
-                        offset: 5
-                      }}
                     />
                   ))}
                   <Bar dataKey="windSpeed" fill="#8884d8" name="Velocidade do Vento (km/h)" />
