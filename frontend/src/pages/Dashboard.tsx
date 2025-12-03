@@ -3,7 +3,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
 import { Download, Cloud, Droplets, Wind, Thermometer, MapPin } from 'lucide-react';
 
 interface WeatherLog {
@@ -369,21 +369,11 @@ const Dashboard = () => {
     }
   };
 
-  // Função para formatar data/hora de forma inteligente
-  const formatChartLabel = (timestamp: string, showDate: boolean) => {
+  // Função para formatar apenas horário (sem data)
+  const formatChartLabel = (timestamp: string) => {
     const date = new Date(timestamp);
-    if (showDate) {
-      // Mostra data curta e horário quando há múltiplos dias
-      return date.toLocaleString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-    } else {
-      // Mostra apenas horário quando todos são do mesmo dia
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    }
+    // Sempre mostra apenas horário
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   // Verifica se há dados de múltiplos dias
@@ -394,20 +384,55 @@ const Dashboard = () => {
     return firstDay !== lastDay;
   })();
 
-  const chartData = weatherData.map((log) => ({
-    time: formatChartLabel(log.timestamp, hasMultipleDays),
-    fullDateTime: new Date(log.timestamp).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }),
-    timestamp: log.timestamp,
-    temperature: log.current.temperature,
-    humidity: log.current.humidity,
-    windSpeed: log.current.windSpeed,
-  }));
+  const chartData = weatherData.map((log, index) => {
+    const currentDate = new Date(log.timestamp);
+    const prevDate = index > 0 ? new Date(weatherData[index - 1].timestamp) : null;
+    const isNewDay = prevDate && currentDate.toDateString() !== prevDate.toDateString();
+    
+    return {
+      time: formatChartLabel(log.timestamp),
+      timeOnly: formatChartLabel(log.timestamp), // Mantém apenas horário para o eixo X
+      fullDateTime: currentDate.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      timestamp: log.timestamp,
+      temperature: log.current.temperature,
+      humidity: log.current.humidity,
+      windSpeed: log.current.windSpeed,
+      isNewDay: isNewDay || false,
+      dayStart: isNewDay ? currentDate.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }) : null,
+    };
+  });
+
+  // Cria array de labels formatados para o eixo X
+  const xAxisLabels = chartData.map((item) => {
+    if (item.isNewDay && item.dayStart) {
+      // Se for início de novo dia, mostra horário e data
+      return `${item.timeOnly}\n${item.dayStart}`;
+    }
+    // Caso contrário, mostra apenas horário
+    return item.timeOnly;
+  });
+
+  // Identifica os pontos onde há mudança de dia para criar linhas divisórias
+  const dayDividers = chartData
+    .map((item, index) => ({
+      ...item,
+      index
+    }))
+    .filter(item => item.isNewDay)
+    .map(item => ({
+      x: item.time,
+      label: item.dayStart
+    }));
 
   if (loading) {
     return (
@@ -626,8 +651,15 @@ const Dashboard = () => {
                     dataKey="time" 
                     angle={-45}
                     textAnchor="end"
-                    height={hasMultipleDays ? 100 : 60}
+                    height={hasMultipleDays ? 120 : 60}
                     interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                    tickFormatter={(value, index) => {
+                      // Retorna o label formatado com data se for início de novo dia
+                      if (index !== undefined && xAxisLabels[index]) {
+                        return xAxisLabels[index];
+                      }
+                      return value;
+                    }}
                   />
                   <YAxis />
                   <Tooltip 
@@ -639,6 +671,15 @@ const Dashboard = () => {
                     }}
                   />
                   <Legend />
+                  {dayDividers.map((divider, index) => (
+                    <ReferenceLine 
+                      key={`divider-${index}`}
+                      x={divider.x} 
+                      stroke="#999" 
+                      strokeWidth={2.5}
+                      strokeDasharray="0"
+                    />
+                  ))}
                   <Line type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperatura (°C)" />
                   <Line type="monotone" dataKey="humidity" stroke="#82ca9d" name="Umidade (%)" />
                 </LineChart>
@@ -659,8 +700,15 @@ const Dashboard = () => {
                     dataKey="time" 
                     angle={-45}
                     textAnchor="end"
-                    height={hasMultipleDays ? 100 : 60}
+                    height={hasMultipleDays ? 120 : 60}
                     interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                    tickFormatter={(value, index) => {
+                      // Retorna o label formatado com data se for início de novo dia
+                      if (index !== undefined && xAxisLabels[index]) {
+                        return xAxisLabels[index];
+                      }
+                      return value;
+                    }}
                   />
                   <YAxis />
                   <Tooltip 
@@ -672,6 +720,23 @@ const Dashboard = () => {
                     }}
                   />
                   <Legend />
+                  {dayDividers.map((divider, index) => (
+                    <ReferenceLine 
+                      key={`divider-bar-${index}`}
+                      x={divider.x} 
+                      stroke="#999" 
+                      strokeWidth={2.5}
+                      strokeDasharray="0"
+                      label={{ 
+                        value: divider.label || "", 
+                        position: "insideTopLeft", 
+                        fill: "#555", 
+                        fontSize: 10,
+                        fontWeight: "600",
+                        offset: 5
+                      }}
+                    />
+                  ))}
                   <Bar dataKey="windSpeed" fill="#8884d8" name="Velocidade do Vento (km/h)" />
                 </BarChart>
               </ResponsiveContainer>
