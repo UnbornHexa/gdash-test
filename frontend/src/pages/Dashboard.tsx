@@ -414,15 +414,58 @@ const Dashboard = () => {
     };
   });
 
-  // Cria array de labels formatados para o eixo X
-  const xAxisLabels = chartData.map((item) => {
+  // Cria estrutura de dados para os labels do eixo X
+  // Armazena informação se tem data para renderização customizada
+  const xAxisLabelsData = chartData.map((item) => {
     if (item.isNewDay && item.dayStart) {
-      // Se for início de novo dia, mostra horário e data
-      return `${item.timeOnly}\n${item.dayStart}`;
+      return {
+        time: item.timeOnly,
+        date: item.dayStart,
+        hasDate: true
+      };
     }
-    // Caso contrário, mostra apenas horário
-    return item.timeOnly;
+    return {
+      time: item.timeOnly,
+      hasDate: false
+    };
   });
+
+  // Componente customizado para renderizar ticks do eixo X com data abaixo do horário
+  const CustomTick = ({ x, y, payload, index }: any) => {
+    // Encontra o item correspondente no chartData usando o uniqueKey
+    const chartItemIndex = chartData.findIndex(d => d.uniqueKey === payload.value);
+    const labelData = chartItemIndex >= 0 ? xAxisLabelsData[chartItemIndex] : null;
+    
+    // Posição Y base - o Recharts posiciona y na linha base do eixo X
+    // Ajustamos para garantir que os labels fiquem completamente abaixo do gráfico
+    // Quando há data, precisamos de mais espaço (duas linhas)
+    const baseY = labelData?.hasDate ? y + 5 : y + 3;
+    
+    if (!labelData) {
+      const item = chartData.find(d => d.uniqueKey === payload.value);
+      return <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>{item?.timeOnly || payload.value}</text>;
+    }
+
+    if (labelData.hasDate) {
+      // Quando há data, posiciona horário na primeira linha e data na segunda linha abaixo
+      return (
+        <g>
+          <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>
+            {labelData.time}
+          </text>
+          <text x={x} y={baseY + 16} textAnchor="middle" fill="#888" fontSize={10}>
+            {labelData.date}
+          </text>
+        </g>
+      );
+    }
+
+    return (
+      <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>
+        {labelData.time}
+      </text>
+    );
+  };
 
   // Identifica os pontos onde há mudança de dia para criar linhas divisórias
   // CRÍTICO: Usa o timestamp completo como identificador único para evitar conflitos
@@ -670,24 +713,14 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ bottom: hasMultipleDays ? 100 : 50, top: 10, right: 10, left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="uniqueKey"
                     type="category"
-                    angle={-45}
-                    textAnchor="end"
-                    height={hasMultipleDays ? 120 : 60}
+                    height={hasMultipleDays ? 90 : 45}
                     interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
-                    tickFormatter={(value, index) => {
-                      // Retorna o label formatado com data se for início de novo dia
-                      if (index !== undefined && xAxisLabels[index]) {
-                        return xAxisLabels[index];
-                      }
-                      // Se não encontrar no array de labels, busca o item correspondente
-                      const item = chartData.find(d => d.uniqueKey === value);
-                      return item ? item.timeOnly : value;
-                    }}
+                    tick={<CustomTick />}
                   />
                   <YAxis />
                   <Tooltip 
@@ -722,24 +755,14 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
+                <BarChart data={chartData} margin={{ bottom: hasMultipleDays ? 100 : 50, top: 10, right: 10, left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="uniqueKey"
                     type="category"
-                    angle={-45}
-                    textAnchor="end"
-                    height={hasMultipleDays ? 120 : 60}
+                    height={hasMultipleDays ? 90 : 45}
                     interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
-                    tickFormatter={(value, index) => {
-                      // Retorna o label formatado com data se for início de novo dia
-                      if (index !== undefined && xAxisLabels[index]) {
-                        return xAxisLabels[index];
-                      }
-                      // Se não encontrar no array de labels, busca o item correspondente
-                      const item = chartData.find(d => d.uniqueKey === value);
-                      return item ? item.timeOnly : value;
-                    }}
+                    tick={<CustomTick />}
                   />
                   <YAxis />
                   <Tooltip 
