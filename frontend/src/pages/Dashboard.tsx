@@ -337,6 +337,22 @@ const Dashboard = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastDataCountRef = useRef<number>(0);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  // Atualiza o perfil do usuário ao montar o componente para garantir que temos os dados mais recentes
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user && (!user.name || user.name.trim() === '')) {
+        try {
+          await updateUser();
+        } catch (error) {
+          console.error('Erro ao atualizar perfil do usuário:', error);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [user, updateUser]);
 
   // Hook para detectar mudanças no tamanho da janela
   useEffect(() => {
@@ -347,6 +363,58 @@ const Dashboard = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Função para obter saudação baseada no horário
+  const getGreeting = (): string => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return 'Bom dia';
+    } else if (hour >= 12 && hour < 18) {
+      return 'Boa tarde';
+    } else {
+      return 'Boa noite';
+    }
+  };
+
+  // Hook para detectar se é a primeira vez após login e mostrar mensagem de boas-vindas
+  useEffect(() => {
+    // Verifica se já foi mostrada a mensagem nesta sessão
+    const welcomeShown = sessionStorage.getItem('welcomeShown');
+    // Verifica se deve mostrar a mensagem (primeira vez após login e tem nome)
+    const userName = user?.name ? String(user.name).trim() : '';
+    const shouldShowWelcome = !welcomeShown && userName.length > 0;
+    
+    if (shouldShowWelcome) {
+      if (loading) {
+        // Mostra a mensagem de boas-vindas enquanto carrega
+        setShowWelcome(true);
+      } else if (showWelcome && !loading) {
+        // Quando o carregamento terminar e a mensagem estiver visível, aguarda um pouco e faz fade-out
+        // Pequeno delay para garantir que a animação fade-in terminou
+        const timer = setTimeout(() => {
+          // Marca que já foi mostrada a mensagem nesta sessão
+          sessionStorage.setItem('welcomeShown', 'true');
+          // Marca que o usuário já logou antes (para próximas sessões) - só marca depois de mostrar
+          if (!localStorage.getItem('hasLoggedBefore')) {
+            localStorage.setItem('hasLoggedBefore', 'true');
+          }
+          
+          // Inicia o fade-out da mensagem E o fade-in do dashboard ao mesmo tempo
+          setShowDashboard(true); // Começa a mostrar o dashboard imediatamente
+          
+          // Após o fade-out (500ms), esconde completamente a mensagem
+          setTimeout(() => {
+            setShowWelcome(false);
+          }, 500); // Duração da animação fade-out
+        }, 1500); // Tempo que a mensagem fica visível antes de começar fade-out
+        
+        return () => clearTimeout(timer);
+      }
+    } else if (!loading && !shouldShowWelcome) {
+      // Se já foi mostrada antes ou não tem nome, mostra o dashboard direto
+      setShowDashboard(true);
+    }
+  }, [loading, user, showWelcome]);
 
   // Obtém localização do usuário
   useEffect(() => {
@@ -998,7 +1066,18 @@ const Dashboard = () => {
 
 
 
-  if (loading) {
+  // Componente de mensagem de boas-vindas (mostra enquanto carrega ou durante fade-out)
+  const welcomeShown = sessionStorage.getItem('welcomeShown');
+  // Garante que pegamos o nome do usuário corretamente - aguarda user estar disponível
+  const userName = user?.name ? String(user.name).trim() : '';
+  const hasName = userName.length > 0;
+  const isFirstTime = !welcomeShown && hasName;
+  // Verifica se já logou antes - só considera se já mostrou a mensagem antes nesta sessão também
+  const hasLoggedBefore = localStorage.getItem('hasLoggedBefore') === 'true' && welcomeShown === 'true';
+  const shouldShowWelcomeMessage = (showWelcome || (loading && isFirstTime)) && hasName && user;
+  
+  // Se está carregando e não deve mostrar mensagem de boas-vindas, mostra spinner
+  if (loading && !isFirstTime) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -1010,8 +1089,67 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+    <div className="space-y-4 sm:space-y-6 relative min-h-[400px]">
+      {/* Mensagem de boas-vindas - aparece no lugar do carregamento */}
+      {shouldShowWelcomeMessage && (
+        <div 
+          className={`flex items-center justify-center min-h-[400px] ${
+            showDashboard ? 'absolute top-0 left-0 right-0' : 'relative'
+          } ${
+            showWelcome && !loading 
+              ? 'welcome-message-exit' 
+              : 'welcome-message-enter'
+          }`}
+          style={{ 
+            zIndex: showDashboard ? 10 : 'auto'
+          }}
+        >
+          <div className="text-center">
+            <div className="space-y-4">
+              {hasLoggedBefore === 'true' ? (
+                <h2 className="text-3xl sm:text-4xl font-light text-gray-900">
+                  Bem-vindo de volta
+                </h2>
+              ) : (
+                <>
+                  <h2 className="text-3xl sm:text-4xl font-light text-gray-900 mb-2">
+                    {(() => {
+                      const greeting = getGreeting();
+                      // Tenta pegar o nome de várias fontes, sempre verificando se existe e não está vazio
+                      let name = '';
+                      if (user?.name && typeof user.name === 'string' && user.name.trim()) {
+                        name = user.name.trim();
+                      } else if (userName && userName.trim()) {
+                        name = userName.trim();
+                      }
+                      
+                      // Monta a mensagem: "Bom dia Nome." ou apenas "Bom dia." se não tiver nome
+                      const message = name ? `${greeting} ${name}.` : `${greeting}.`;
+                      return message;
+                    })()}
+                  </h2>
+                  <p className="text-lg sm:text-xl text-gray-600 mt-2">
+                    Seja bem-vindo
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo do dashboard - aparece durante fade-out da mensagem */}
+      {(!shouldShowWelcomeMessage || showDashboard) && (
+        <div 
+          className={`space-y-4 sm:space-y-6 ${
+            showDashboard && shouldShowWelcomeMessage
+              ? 'dashboard-fade-in' 
+              : !shouldShowWelcomeMessage
+                ? 'opacity-100'
+                : 'opacity-0'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Painel Meteorológico</h1>
           {userLocation && (
@@ -1174,33 +1312,41 @@ const Dashboard = () => {
           <CardContent className="space-y-3 sm:space-y-4 pt-2">
             <div>
               <div className="space-y-1">
-                {formatSummary(insights.summary)}
+                {formatSummary(insights?.summary || '')}
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Índice de Conforto</p>
-                <p className="text-2xl font-bold">{insights.comfort.index}</p>
-                <p className="text-xs text-muted-foreground">{insights.comfort.level}</p>
+                <p className="text-2xl font-bold">{insights?.comfort?.index ?? '-'}</p>
+                <p className="text-xs text-muted-foreground">{insights?.comfort?.level ?? '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Classificação</p>
-                <p className="text-2xl font-bold">{insights.classification}</p>
+                <p className="text-2xl font-bold">{insights?.classification ?? '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Tendência de Temperatura</p>
-                <p className="text-2xl font-bold">{insights.trends.temperature}</p>
+                <p className="text-2xl font-bold">{insights?.trends?.temperature ?? '-'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {insights.trends.temperatureChange > 0 ? '+' : ''}
-                  {insights.trends.temperatureChange.toFixed(1)}°C
+                  {insights?.trends?.temperatureChange != null ? (
+                    <>
+                      {insights.trends.temperatureChange > 0 ? '+' : ''}
+                      {insights.trends.temperatureChange.toFixed(1)}°C
+                    </>
+                  ) : '-'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Temp. Média</p>
-                <p className="text-2xl font-bold">{insights.statistics.averageTemperature.toFixed(1)}°C</p>
+                <p className="text-2xl font-bold">
+                  {insights?.statistics?.averageTemperature != null 
+                    ? `${insights.statistics.averageTemperature.toFixed(1)}°C` 
+                    : '-'}
+                </p>
               </div>
             </div>
-            {insights.alerts.length > 0 && (
+            {insights?.alerts && insights.alerts.length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2 text-sm sm:text-base">Alertas</h3>
                 <ul className="list-disc list-inside space-y-1">
@@ -1428,6 +1574,8 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </>
+      )}
+        </div>
       )}
     </div>
   );

@@ -216,11 +216,36 @@ export class WeatherService {
 
   async fetchCurrentWeather(latitude: number, longitude: number, saveToDatabase: boolean = false) {
     try {
+      // Valida e converte os parâmetros para números
+      const lat = typeof latitude === 'string' ? parseFloat(latitude) : latitude;
+      const lon = typeof longitude === 'string' ? parseFloat(longitude) : longitude;
+
+      if (isNaN(lat) || isNaN(lon)) {
+        throw new HttpException(
+          'Latitude e longitude devem ser números válidos',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (lat < -90 || lat > 90) {
+        throw new HttpException(
+          'Latitude deve estar entre -90 e 90',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (lon < -180 || lon > 180) {
+        throw new HttpException(
+          'Longitude deve estar entre -180 e 180',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const weatherApiUrl = 'https://api.open-meteo.com/v1/forecast';
       
       const params = {
-        latitude,
-        longitude,
+        latitude: lat,
+        longitude: lon,
         current: [
           'temperature_2m',
           'relative_humidity_2m',
@@ -240,6 +265,14 @@ export class WeatherService {
 
       const response = await axios.get(weatherApiUrl, { params, timeout: 10000 });
       const data = response.data;
+
+      // Valida se a resposta tem os dados esperados
+      if (!data || !data.current) {
+        throw new HttpException(
+          'Resposta da API meteorológica inválida',
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
 
       // Mapeia código meteorológico para condição
       const weatherCodes: { [key: number]: string } = {
@@ -279,16 +312,16 @@ export class WeatherService {
       const weatherData = {
         timestamp: new Date().toISOString(),
         location: {
-          latitude,
-          longitude,
+          latitude: lat,
+          longitude: lon,
         },
         current: {
-          temperature: current.temperature_2m || null,
-          humidity: current.relative_humidity_2m || null,
-          windSpeed: current.wind_speed_10m || null,
+          temperature: current.temperature_2m ?? null,
+          humidity: current.relative_humidity_2m ?? null,
+          windSpeed: current.wind_speed_10m ?? null,
           weatherCode: weatherCode,
           condition: weatherCodes[weatherCode] || 'unknown',
-          precipitation: current.precipitation || 0,
+          precipitation: current.precipitation ?? 0,
         },
         forecast: data.hourly
           ? {
@@ -311,12 +344,12 @@ export class WeatherService {
           const existingLog = await this.weatherLogModel
             .findOne({
               'location.latitude': {
-                $gte: latitude - 0.001,
-                $lte: latitude + 0.001,
+                $gte: lat - 0.001,
+                $lte: lat + 0.001,
               },
               'location.longitude': {
-                $gte: longitude - 0.001,
-                $lte: longitude + 0.001,
+                $gte: lon - 0.001,
+                $lte: lon + 0.001,
               },
               timestamp: { $gte: thirtySecondsAgo },
             })
@@ -325,7 +358,7 @@ export class WeatherService {
           // Se não existe log recente, salva
           if (!existingLog) {
             await this.create(weatherData as CreateWeatherLogDto);
-            console.log(`✅ Dados meteorológicos salvos para localização: ${latitude}, ${longitude}`);
+            console.log(`✅ Dados meteorológicos salvos para localização: ${lat}, ${lon}`);
           }
         } catch (saveError) {
           // Não falha a requisição se houver erro ao salvar, apenas loga
@@ -336,8 +369,31 @@ export class WeatherService {
       return weatherData;
     } catch (error: any) {
       console.error('Erro ao buscar dados meteorológicos:', error);
+      
+      // Se já é uma HttpException, re-lança
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // Se é um erro do axios (API externa), fornece mensagem mais detalhada
+      if (error.response) {
+        throw new HttpException(
+          `Erro ao buscar dados meteorológicos: ${error.response.status} - ${error.response.statusText}`,
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+      
+      // Se é um erro de timeout
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        throw new HttpException(
+          'Timeout ao buscar dados meteorológicos. A API pode estar temporariamente indisponível.',
+          HttpStatus.GATEWAY_TIMEOUT,
+        );
+      }
+      
+      // Erro genérico
       throw new HttpException(
-        'Erro ao buscar dados meteorológicos da API',
+        `Erro ao buscar dados meteorológicos: ${error.message || 'Erro desconhecido'}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -24,13 +24,61 @@ class WeatherCollector:
         
         # Parse da URL do RabbitMQ
         self.rabbitmq_params = pika.URLParameters(self.rabbitmq_url)
-        
-    def collect_weather_data(self):
-        """Coleta dados meteorológicos da API Open-Meteo"""
+    
+    def send_to_rabbitmq(self, data):
+        """Envia dados meteorológicos para a fila RabbitMQ"""
+        try:
+            connection = pika.BlockingConnection(self.rabbitmq_params)
+            channel = connection.channel()
+            
+            # Declara fila (durável)
+            channel.queue_declare(queue=self.queue_name, durable=True)
+            
+            # Publica mensagem
+            message = json.dumps(data)
+            channel.basic_publish(
+                exchange='',
+                routing_key=self.queue_name,
+                body=message,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # Torna mensagem persistente
+                )
+            )
+            
+            print(f"[{datetime.now()}] Dados meteorológicos enviados para RabbitMQ")
+            connection.close()
+            return True
+            
+        except Exception as e:
+            print(f"Erro ao enviar para RabbitMQ: {e}")
+            return False
+    
+    def get_users_with_locations(self):
+        """Busca usuários com localização da API NestJS"""
+        try:
+            url = f"{self.api_url}/users/with-locations"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            users = response.json()
+            
+            if not isinstance(users, list):
+                print(f"⚠️ Resposta da API não é uma lista: {type(users)}")
+                return []
+            
+            return users
+        except requests.exceptions.RequestException as e:
+            print(f"Erro ao buscar usuários da API: {e}")
+            return []
+        except Exception as e:
+            print(f"Erro inesperado ao buscar usuários: {e}")
+            return []
+    
+    def collect_weather_data_for_location(self, latitude, longitude):
+        """Coleta dados meteorológicos da API Open-Meteo para uma localização específica"""
         try:
             params = {
-                'latitude': self.latitude,
-                'longitude': self.longitude,
+                'latitude': latitude,
+                'longitude': longitude,
                 'current': [
                     'temperature_2m',
                     'relative_humidity_2m',
@@ -60,8 +108,8 @@ class WeatherCollector:
             weather_data = {
                 'timestamp': datetime.utcnow().isoformat(),
                 'location': {
-                    'latitude': self.latitude,
-                    'longitude': self.longitude
+                    'latitude': latitude,
+                    'longitude': longitude
                 },
                 'current': {
                     'temperature': current.get('temperature_2m'),
@@ -105,34 +153,6 @@ class WeatherCollector:
         except Exception as e:
             print(f"Erro inesperado: {e}")
             return None
-    
-    def send_to_rabbitmq(self, data):
-        """Envia dados meteorológicos para a fila RabbitMQ"""
-        try:
-            connection = pika.BlockingConnection(self.rabbitmq_params)
-            channel = connection.channel()
-            
-            # Declara fila (durável)
-            channel.queue_declare(queue=self.queue_name, durable=True)
-            
-            # Publica mensagem
-            message = json.dumps(data)
-            channel.basic_publish(
-                exchange='',
-                routing_key=self.queue_name,
-                body=message,
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Torna mensagem persistente
-                )
-            )
-            
-            print(f"[{datetime.now()}] Dados meteorológicos enviados para RabbitMQ")
-            connection.close()
-            return True
-            
-        except Exception as e:
-            print(f"Erro ao enviar para RabbitMQ: {e}")
-            return False
     
     def wait_until_next_minute(self):
         """Aguarda até o início do próximo minuto"""

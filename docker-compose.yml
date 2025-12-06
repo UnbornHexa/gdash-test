@@ -48,6 +48,7 @@ services:
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
       DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-admin@example.com}
       DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-123456}
+      COUNTRY_STATE_CITY_API_KEY: ${COUNTRY_STATE_CITY_API_KEY:-}
     depends_on:
       - mongodb
       - rabbitmq

@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { WeatherService } from './weather.service';
@@ -103,8 +104,21 @@ export class WeatherController {
   @Get('current')
   @UseGuards(JwtAuthGuard)
   async getCurrentWeather(@Query() query: FetchWeatherDto) {
-    // Busca dados atuais sem salvar (os dados são coletados pelo serviço Python)
-    return this.weatherService.fetchCurrentWeather(query.latitude, query.longitude, false);
+    try {
+      // Busca dados atuais sem salvar (os dados são coletados pelo serviço Python)
+      return await this.weatherService.fetchCurrentWeather(query.latitude, query.longitude, false);
+    } catch (error: any) {
+      // Se for uma HttpException, deixa propagar
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      // Caso contrário, loga e lança um erro genérico
+      console.error('Erro inesperado ao buscar dados meteorológicos:', error);
+      throw new HttpException(
+        'Erro ao buscar dados meteorológicos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get('location')

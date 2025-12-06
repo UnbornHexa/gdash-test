@@ -25,6 +25,15 @@ export class User extends Document {
     latitude: number;
     longitude: number;
   };
+
+  @Prop()
+  country?: string;
+
+  @Prop()
+  state?: string;
+
+  @Prop()
+  city?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

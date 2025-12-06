@@ -5,10 +5,14 @@ import * as bcrypt from 'bcrypt';
 import { User } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { GeocodingService } from './geocoding.service';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private geocodingService: GeocodingService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userModel.findOne({ email: createUserDto.email }).exec();
@@ -17,9 +21,22 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    
+    // Geocodifica a localização se cidade, estado e país forem fornecidos
+    let location = undefined;
+    if (createUserDto.city && createUserDto.state && createUserDto.country) {
+      const addressString = `${createUserDto.city}, ${createUserDto.state}, ${createUserDto.country}`;
+      location = await this.geocodingService.geocodeAddress(addressString);
+    }
+
     const createdUser = new this.userModel({
-      ...createUserDto,
+      email: createUserDto.email,
       password: hashedPassword,
+      name: createUserDto.name,
+      country: createUserDto.country,
+      state: createUserDto.state,
+      city: createUserDto.city,
+      location: location || undefined,
     });
     return createdUser.save();
   }
@@ -69,7 +86,55 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
-    Object.assign(user, updateUserDto);
+    // Atualiza país, estado e cidade
+    if (updateUserDto.country !== undefined) {
+      user.country = updateUserDto.country;
+    }
+    if (updateUserDto.state !== undefined) {
+      user.state = updateUserDto.state;
+    }
+    if (updateUserDto.city !== undefined) {
+      user.city = updateUserDto.city;
+    }
+
+    // Geocodifica a localização se cidade, estado e país estiverem definidos
+    const finalCity = updateUserDto.city !== undefined ? updateUserDto.city : user.city;
+    const finalState = updateUserDto.state !== undefined ? updateUserDto.state : user.state;
+    const finalCountry = updateUserDto.country !== undefined ? updateUserDto.country : user.country;
+
+    if (finalCity && finalState && finalCountry) {
+      const addressString = `${finalCity}, ${finalState}, ${finalCountry}`;
+      const location = await this.geocodingService.geocodeAddress(addressString);
+      if (location) {
+        user.location = location;
+      } else {
+        // Se a geocodificação falhar, mantém a localização anterior ou remove se não houver
+        if (!user.location) {
+          user.location = undefined;
+        }
+      }
+    } else if (updateUserDto.city === '' || updateUserDto.state === '' || updateUserDto.country === '') {
+      // Se algum campo for removido, remove a localização
+      user.location = undefined;
+      if (updateUserDto.city === '') user.city = undefined;
+      if (updateUserDto.state === '') user.state = undefined;
+      if (updateUserDto.country === '') user.country = undefined;
+    }
+
+    // Atualiza outros campos
+    if (updateUserDto.email) {
+      user.email = updateUserDto.email;
+    }
+    if (updateUserDto.password) {
+      user.password = updateUserDto.password;
+    }
+    if (updateUserDto.name !== undefined) {
+      user.name = updateUserDto.name;
+    }
+    if (updateUserDto.isActive !== undefined) {
+      user.isActive = updateUserDto.isActive;
+    }
+
     return user.save();
   }
 
@@ -139,9 +204,12 @@ export class UsersService {
       const createPromise = this.userModel.create({
         email: defaultEmail,
         password: hashedPassword,
-        name: 'Usuário Administrador',
+        name: 'GDASH',
         isActive: true,
         location: guarujaLocation,
+        country: 'BR',
+        state: 'SP',
+        city: 'Guarujá',
       });
       
       const timeoutPromise = new Promise((_, reject) => 
@@ -160,12 +228,21 @@ export class UsersService {
         console.log(`⚠️ Usuário já existe ou timeout, tentando atualizar...`);
         try {
           const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+          const guarujaLocation = {
+            latitude: -23.9931,
+            longitude: -46.2564,
+          };
+          
           const updatePromise = this.userModel.updateOne(
             { email: defaultEmail },
             { 
               password: hashedPassword,
               isActive: true,
-              name: 'Usuário Administrador'
+              name: 'GDASH',
+              location: guarujaLocation,
+              country: 'BR',
+              state: 'SP',
+              city: 'Guarujá',
             }
           ).exec();
           
@@ -305,7 +382,10 @@ export class UsersService {
         // Verifica se precisa atualizar localização
         const needsLocationUpdate = !existingUser.location || 
           existingUser.location.latitude !== guarujaLocation.latitude ||
-          existingUser.location.longitude !== guarujaLocation.longitude;
+          existingUser.location.longitude !== guarujaLocation.longitude ||
+          existingUser.country !== 'BR' ||
+          existingUser.state !== 'SP' ||
+          existingUser.city !== 'Guarujá';
         
         const needsUpdate = !existingUser.isActive || !isPasswordValid || needsLocationUpdate;
         
@@ -325,6 +405,9 @@ export class UsersService {
           existingUser.email = defaultEmail;
           // Garante que tem localização de Guarujá
           existingUser.location = guarujaLocation;
+          existingUser.country = 'BR';
+          existingUser.state = 'SP';
+          existingUser.city = 'Guarujá';
           await existingUser.save();
           
           console.log(`✅ Usuário padrão atualizado com sucesso: ${defaultEmail}`);
@@ -346,9 +429,12 @@ export class UsersService {
       const newUser = await this.userModel.create({
         email: defaultEmail,
         password: hashedPassword,
-        name: 'Usuário Administrador',
+        name: 'GDASH',
         isActive: true,
         location: guarujaLocation,
+        country: 'BR',
+        state: 'SP',
+        city: 'Guarujá',
       });
 
       console.log(`✅ Usuário padrão criado com sucesso: ${defaultEmail} (ID: ${newUser._id})`);

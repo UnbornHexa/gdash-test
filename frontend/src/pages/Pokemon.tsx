@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Pokemon {
   id: string;
@@ -33,7 +39,20 @@ const Pokemon = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const limit = 20;
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint do Tailwind
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     fetchPokemons();
@@ -56,10 +75,84 @@ const Pokemon = () => {
     try {
       const response = await api.get(`/pokemon/${id}`);
       setSelectedPokemon(response.data);
+      
+      // Abre modal no mobile, mantém inline no desktop
+      if (isMobile) {
+        setIsModalOpen(true);
+      }
     } catch (error) {
       console.error('Error fetching Pokémon details:', error);
     }
   };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    // No mobile, limpa o pokémon selecionado ao fechar o modal
+    if (isMobile) {
+      setSelectedPokemon(null);
+    }
+  };
+
+  const PokemonDetailContent = ({ pokemon }: { pokemon: PokemonDetail }) => (
+    <div className="space-y-3 sm:space-y-4">
+      {pokemon.sprites.frontDefault && (
+        <div className="text-center">
+          <img
+            src={pokemon.sprites.frontDefault}
+            alt={pokemon.name}
+            className="w-24 h-24 sm:w-32 sm:h-32 mx-auto"
+          />
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-semibold mb-2 text-sm sm:text-base">Informações Básicas</h3>
+        <div className="space-y-1 text-xs sm:text-sm">
+          <p><span className="font-medium">Altura:</span> {pokemon.height / 10}m</p>
+          <p><span className="font-medium">Peso:</span> {pokemon.weight / 10}kg</p>
+          <p><span className="font-medium">Experiência Base:</span> {pokemon.baseExperience}</p>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold mb-2 text-sm sm:text-base">Tipos</h3>
+        <div className="flex flex-wrap gap-2">
+          {pokemon.types.map((type) => (
+            <span
+              key={type.slot}
+              className="px-2 py-1 text-xs bg-gray-200 rounded capitalize"
+            >
+              {type.type.name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold mb-2 text-sm sm:text-base">Habilidades</h3>
+        <div className="space-y-1">
+          {pokemon.abilities.map((ability, index) => (
+            <p key={index} className="text-xs sm:text-sm capitalize">
+              {ability.ability.name}
+              {ability.isHidden && <span className="text-gray-500"> (Oculta)</span>}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold mb-2 text-sm sm:text-base">Estatísticas Base</h3>
+        <div className="space-y-1">
+          {pokemon.stats.map((stat, index) => (
+            <div key={index} className="flex justify-between text-xs sm:text-sm">
+              <span className="capitalize">{stat.stat.name.replace('-', ' ')}:</span>
+              <span className="font-medium">{stat.baseStat}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading && pokemons.length === 0) {
     return <div className="text-center py-12">Carregando...</div>;
@@ -135,74 +228,40 @@ const Pokemon = () => {
           </Card>
         </div>
 
-        {selectedPokemon && (
+        {/* Desktop: mostra inline ao lado */}
+        {selectedPokemon && !isMobile && (
           <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="capitalize text-lg sm:text-xl">{selectedPokemon.name}</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Pokémon #{selectedPokemon.id}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4">
-                {selectedPokemon.sprites.frontDefault && (
-                  <div className="text-center">
-                    <img
-                      src={selectedPokemon.sprites.frontDefault}
-                      alt={selectedPokemon.name}
-                      className="w-24 h-24 sm:w-32 sm:h-32 mx-auto"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Informações Básicas</h3>
-                  <div className="space-y-1 text-xs sm:text-sm">
-                    <p><span className="font-medium">Altura:</span> {selectedPokemon.height / 10}m</p>
-                    <p><span className="font-medium">Peso:</span> {selectedPokemon.weight / 10}kg</p>
-                    <p><span className="font-medium">Experiência Base:</span> {selectedPokemon.baseExperience}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Tipos</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPokemon.types.map((type) => (
-                      <span
-                        key={type.slot}
-                        className="px-2 py-1 text-xs bg-gray-200 rounded capitalize"
-                      >
-                        {type.type.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Habilidades</h3>
-                  <div className="space-y-1">
-                    {selectedPokemon.abilities.map((ability, index) => (
-                      <p key={index} className="text-xs sm:text-sm capitalize">
-                        {ability.ability.name}
-                        {ability.isHidden && <span className="text-gray-500"> (Oculta)</span>}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Estatísticas Base</h3>
-                  <div className="space-y-1">
-                    {selectedPokemon.stats.map((stat, index) => (
-                      <div key={index} className="flex justify-between text-xs sm:text-sm">
-                        <span className="capitalize">{stat.stat.name.replace('-', ' ')}:</span>
-                        <span className="font-medium">{stat.baseStat}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="sticky top-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="capitalize text-lg sm:text-xl">{selectedPokemon.name}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Pokémon #{selectedPokemon.id}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PokemonDetailContent pokemon={selectedPokemon} />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
+
+        {/* Mobile: modal */}
+        <Dialog open={isModalOpen} onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            closeModal();
+          }
+        }}>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="capitalize">{selectedPokemon?.name}</DialogTitle>
+              {selectedPokemon && (
+                <p className="text-sm text-gray-500">Pokémon #{selectedPokemon.id}</p>
+              )}
+            </DialogHeader>
+            {selectedPokemon && <PokemonDetailContent pokemon={selectedPokemon} />}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

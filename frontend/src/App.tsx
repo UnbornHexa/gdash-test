@@ -6,13 +6,18 @@ import Users from './pages/Users';
 import Pokemon from './pages/Pokemon';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import PageTransition from './components/PageTransition';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={
+            <PageTransition>
+              <Login />
+            </PageTransition>
+          } />
           <Route
             path="/"
             element={

@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { UsersService } from './users.service';
+import { LocationDataService } from './location-data.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
@@ -21,7 +22,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly locationDataService: LocationDataService,
+  ) {}
 
   @Get('setup/default-user')
   async createDefaultUser() {
@@ -140,6 +144,24 @@ export class UsersController {
         });
       }
     }
+  }
+
+  @Get('countries')
+  async getCountries() {
+    return this.locationDataService.getCountries();
+  }
+
+  @Get('states/:countryCode')
+  async getStates(@Param('countryCode') countryCode: string) {
+    return this.locationDataService.getStates(countryCode);
+  }
+
+  @Get('cities/:countryCode/:stateCode')
+  async getCities(
+    @Param('countryCode') countryCode: string,
+    @Param('stateCode') stateCode: string,
+  ) {
+    return this.locationDataService.getCities(countryCode, stateCode);
   }
 
   @Post()

@@ -130,6 +130,11 @@ API RESTful com as seguintes funcionalidades:
 - `PATCH /api/users/:id` - Atualizar usuário
 - `DELETE /api/users/:id` - Excluir usuário
 
+#### Localização (Países, Estados e Cidades)
+- `GET /api/users/countries` - Listar todos os países do mundo
+- `GET /api/users/states/:countryCode` - Listar estados/províncias de um país
+- `GET /api/users/cities/:countryCode/:stateCode` - Listar cidades de um estado
+
 #### Pokemon (Opcional)
 - `GET /api/pokemon` - Listar Pokémon (paginado)
 - `GET /api/pokemon/:id` - Obter detalhes do Pokémon
@@ -140,6 +145,7 @@ API RESTful com as seguintes funcionalidades:
 - `PORT`: Porta da API (padrão: 3000)
 - `DEFAULT_USER_EMAIL`: E-mail do administrador padrão
 - `DEFAULT_USER_PASSWORD`: Senha do administrador padrão
+- `COUNTRY_STATE_CITY_API_KEY`: (Opcional) API key da CountryStateCity API para buscar países, estados e cidades do mundo todo. [Obter API key gratuita](https://countrystatecity.in/). Se não fornecida, o sistema usa uma lista limitada de países principais. Para o Brasil, sempre usa a API do IBGE (gratuita).
 
 **Executando manualmente**:
 ```bash

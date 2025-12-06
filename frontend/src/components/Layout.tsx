@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Cloud, Users, Sparkles, Menu, X } from 'lucide-react';
+import PageTransition from '@/components/PageTransition';
 
 const Layout = () => {
   const { logout } = useAuth();
@@ -12,6 +13,8 @@ const Layout = () => {
 
   const handleLogout = () => {
     logout();
+    // Limpa a flag de boas-vindas para mostrar na próxima vez que logar
+    sessionStorage.removeItem('welcomeShown');
     navigate('/login', { replace: true });
   };
 
@@ -109,7 +112,9 @@ const Layout = () => {
       </nav>
 
       <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8 w-full">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
     </div>
   );

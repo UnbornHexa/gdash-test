@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -34,6 +34,15 @@ async function bootstrap() {
         forbidNonWhitelisted: false,
         transformOptions: {
           enableImplicitConversion: true,
+        },
+        exceptionFactory: (errors) => {
+          const messages = errors.map((error) => {
+            return Object.values(error.constraints || {}).join(', ');
+          });
+          return new BadRequestException({
+            message: 'Dados inválidos',
+            errors: messages,
+          });
         },
       }),
     );
