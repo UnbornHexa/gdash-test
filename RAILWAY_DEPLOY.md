@@ -88,6 +88,11 @@ Após o deploy, verifique:
 - ✅ Resolvido: Removido `npm` do array de pacotes Nix
 - O npm já vem incluído com `nodejs-18_x` automaticamente
 
+**Erro: "Cannot find module '/app/dist/main.js'"**
+- ✅ Resolvido: Mudado para `npm install` (instala devDependencies como @nestjs/cli)
+- ✅ Resolvido: Start command usa `npm run start:prod` (executa prestart:prod que faz build automaticamente)
+- Ver arquivo `RAILWAY_FIX_CRASH.md` para detalhes completos
+
 **Erro de conexão com MongoDB:**
 - Verifique se `MONGODB_URI` está configurada corretamente
 - Verifique se o IP do Railway está na whitelist do MongoDB Atlas (se aplicável)

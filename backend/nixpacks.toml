@@ -2,11 +2,11 @@
 nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["npm install"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "node dist/main.js"
+cmd = "npm run start:prod"
 
