@@ -1388,26 +1388,30 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            {insights?.alerts && insights.alerts.length > 0 && (
-              <div>
-                <h3 className="font-semibold mb-2 text-sm sm:text-base">Alertas</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  {insights.alerts.map((alert, index) => (
-                    <li key={index} className="text-xs sm:text-sm text-orange-600">{alert}</li>
-                  ))}
-                </ul>
+            {(insights?.alerts && insights.alerts.length > 0) || (insights?.futureForecasts && insights.futureForecasts.length > 0) ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                {insights?.alerts && insights.alerts.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm sm:text-base">Alertas</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {insights.alerts.map((alert, index) => (
+                        <li key={index} className="text-xs sm:text-sm text-orange-600">{alert}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {insights?.futureForecasts && insights.futureForecasts.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 text-sm sm:text-base">Previsões Futuras</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {insights.futureForecasts.map((forecast, index) => (
+                        <li key={index} className="text-xs sm:text-sm text-blue-600">{forecast}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
-            {insights?.futureForecasts && insights.futureForecasts.length > 0 && (
-              <div className="mt-4">
-                <h3 className="font-semibold mb-2 text-sm sm:text-base">Previsões Futuras</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  {insights.futureForecasts.map((forecast, index) => (
-                    <li key={index} className="text-xs sm:text-sm text-blue-600">{forecast}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       )}

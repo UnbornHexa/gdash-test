@@ -253,19 +253,17 @@ export class InsightsService {
     // Analisa os próximos 7 dias
     for (let i = 0; i < Math.min(times.length, 7); i++) {
       const date = new Date(times[i]);
-      const dayName = this.getDayName(date);
       const weatherCode = weatherCodes[i] || 0;
       const precipSum = precipitationSum[i] || 0;
       const precipProb = precipitationProbabilityMax[i] || 0;
       const tempMax = temperatureMax[i];
       const tempMin = temperatureMin[i];
 
-      // Formata a data
-      const dateStr = date.toLocaleDateString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit',
-        weekday: 'long'
-      });
+      // Formata a data no formato "DD/MM, dia-da-semana"
+      const dayName = this.getDayName(date);
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const dateStr = `${day}/${month}, ${dayName}`;
 
       // Detecta chuva forte
       if (heavyRainCodes.includes(weatherCode) || precipSum > 10 || precipProb > 70) {
