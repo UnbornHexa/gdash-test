@@ -118,8 +118,17 @@ Após o deploy, verifique:
 
 **Erro: `getaddrinfo ENOTFOUND mongodb` ou `Unable to connect to the database`** ⚠️
 - **Causa**: A variável `MONGODB_URI` não está configurada no Railway
-- **Solução**: Veja seção 3 acima ou arquivo `RAILWAY_MONGODB_SETUP.md` para guia detalhado
+- **Solução**: Veja seção 3 acima ou arquivo `CONFIGURAR_MONGODB_RAILWAY.md` para guia detalhado
 - **Verificação rápida**: Nos logs, deve aparecer `MONGODB_URI: definida` (não "não definida")
+
+**Erro: `MongoServerError: Authentication failed`** 🔐
+- **Causa**: A connection string está configurada, mas usuário/senha estão incorretos
+- **Soluções**:
+  1. Verifique se a connection string do Railway MongoDB está completa e correta
+  2. Se a senha tem caracteres especiais (`@`, `#`, `%`), faça URL encoding:
+     - `@` → `%40`, `#` → `%23`, `%` → `%25`
+  3. Recrie o MongoDB no Railway ou use MongoDB Atlas
+- **Veja**: Arquivo `CORRIGIR_AUTH_MONGODB.md` para guia detalhado passo a passo
 
 **Erro de conexão com MongoDB:**
 - Verifique se `MONGODB_URI` está configurada corretamente

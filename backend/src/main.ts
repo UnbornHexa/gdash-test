@@ -6,7 +6,16 @@ async function bootstrap() {
   try {
     console.log('🚀 [1/6] Iniciando aplicação NestJS...');
     console.log('📋 [2/6] Variáveis de ambiente:');
-    console.log(`   MONGODB_URI: ${process.env.MONGODB_URI ? 'definida' : 'não definida'}`);
+    
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!mongoUri) {
+      console.error('❌ [CRÍTICO] MONGODB_URI não está definida!');
+      console.error('❌ A aplicação tentará usar o fallback local (mongodb:27017) que não funciona em produção.');
+      console.error('❌ Configure a variável MONGODB_URI ou MONGO_URI no Railway.');
+      console.error('❌ Veja: RAILWAY_DEPLOY.md seção 3 para instruções.');
+    } else {
+      console.log(`   ✅ MONGODB_URI: definida (${mongoUri.substring(0, 20)}...)`);
+    }
     console.log(`   PORT: ${process.env.PORT || 3000}`);
     
     console.log('📋 [3/6] Criando aplicação NestJS...');
