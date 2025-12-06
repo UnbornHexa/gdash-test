@@ -21,11 +21,22 @@ async function bootstrap() {
     console.log('📋 [5/6] Configurando middleware...');
     
     // Habilita CORS
+    const corsOrigins = process.env.CORS_ORIGINS 
+      ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+      : ['http://localhost:5173', 'http://localhost:3000'];
+    
+    // Adiciona origem do Railway automaticamente se estiver rodando lá
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+      corsOrigins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+      corsOrigins.push(`http://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+    
+    console.log('🌐 CORS configurado para origens:', corsOrigins);
     app.enableCors({
-      origin: process.env.CORS_ORIGINS 
-        ? process.env.CORS_ORIGINS.split(',')
-        : ['http://localhost:5173', 'http://localhost:3000'],
+      origin: corsOrigins.length > 0 ? corsOrigins : true, // Permite todas as origens se não especificado
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     });
 
     // Pipe de validação global
