@@ -31,7 +31,16 @@ const Login = () => {
       await login(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Credenciais inválidas');
+      // Trata diferentes tipos de erro
+      if (err.message && err.message.includes('conectar ao servidor')) {
+        setError(err.message);
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Erro ao fazer login. Verifique se o servidor está rodando.');
+      }
     } finally {
       setLoading(false);
     }

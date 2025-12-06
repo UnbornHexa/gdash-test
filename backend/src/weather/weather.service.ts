@@ -118,6 +118,8 @@ export class WeatherService {
             ...baseLog,
             timestamp: currentWeather.timestamp,
             current: currentWeather.current,
+            forecast: currentWeather.forecast,
+            dailyForecast: currentWeather.dailyForecast,
           };
         }
       } else {
@@ -127,6 +129,7 @@ export class WeatherService {
           location: currentWeather.location,
           current: currentWeather.current,
           forecast: currentWeather.forecast,
+          dailyForecast: currentWeather.dailyForecast,
         };
       }
     }
@@ -134,8 +137,32 @@ export class WeatherService {
     return this.insightsService.generateInsights(recentLogs, latestLog);
   }
 
-  async exportToCSV(): Promise<string> {
-    const logs = await this.weatherLogModel.find().sort({ timestamp: -1 }).exec();
+  private filterLogsByDateRange(logs: any[], dateStart?: string, dateEnd?: string): any[] {
+    if (!dateStart && !dateEnd) {
+      return logs;
+    }
+
+    return logs.filter((log) => {
+      const logDate = new Date(log.timestamp);
+      const logDateStr = logDate.toISOString().split('T')[0]; // formato YYYY-MM-DD
+      
+      if (dateStart && dateEnd) {
+        return logDateStr >= dateStart && logDateStr <= dateEnd;
+      } else if (dateStart) {
+        return logDateStr >= dateStart;
+      } else if (dateEnd) {
+        return logDateStr <= dateEnd;
+      }
+      
+      return true;
+    });
+  }
+
+  async exportToCSV(dateStart?: string, dateEnd?: string): Promise<string> {
+    let logs = await this.weatherLogModel.find().sort({ timestamp: -1 }).exec();
+    
+    // Filtra por período se fornecido
+    logs = this.filterLogsByDateRange(logs, dateStart, dateEnd);
 
     const headers = [
       'Timestamp',
@@ -166,8 +193,11 @@ export class WeatherService {
     return csvContent;
   }
 
-  async exportToXLSX(): Promise<Buffer> {
-    const logs = await this.weatherLogModel.find().sort({ timestamp: -1 }).exec();
+  async exportToXLSX(dateStart?: string, dateEnd?: string): Promise<Buffer> {
+    let logs = await this.weatherLogModel.find().sort({ timestamp: -1 }).exec();
+    
+    // Filtra por período se fornecido
+    logs = this.filterLogsByDateRange(logs, dateStart, dateEnd);
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Weather Logs');
@@ -260,6 +290,15 @@ export class WeatherService {
           'weather_code',
           'precipitation_probability',
         ],
+        daily: [
+          'weather_code',
+          'temperature_2m_max',
+          'temperature_2m_min',
+          'precipitation_sum',
+          'precipitation_probability_max',
+          'wind_speed_10m_max',
+        ],
+        forecast_days: 7,
         timezone: 'America/Sao_Paulo',
       };
 
@@ -331,6 +370,17 @@ export class WeatherService {
               windSpeed: data.hourly.wind_speed_10m?.slice(0, 24) || [],
               weatherCode: data.hourly.weather_code?.slice(0, 24) || [],
               precipitationProbability: data.hourly.precipitation_probability?.slice(0, 24) || [],
+            }
+          : undefined,
+        dailyForecast: data.daily
+          ? {
+              time: data.daily.time?.slice(0, 7) || [],
+              weatherCode: data.daily.weather_code?.slice(0, 7) || [],
+              temperatureMax: data.daily.temperature_2m_max?.slice(0, 7) || [],
+              temperatureMin: data.daily.temperature_2m_min?.slice(0, 7) || [],
+              precipitationSum: data.daily.precipitation_sum?.slice(0, 7) || [],
+              precipitationProbabilityMax: data.daily.precipitation_probability_max?.slice(0, 7) || [],
+              windSpeedMax: data.daily.wind_speed_10m_max?.slice(0, 7) || [],
             }
           : undefined,
       };

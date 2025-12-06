@@ -87,13 +87,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []); // Only run once on mount
 
   const login = async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
-    const { access_token, user: userData } = response.data;
-    
-    setToken(access_token);
-    setUser(userData);
-    localStorage.setItem('token', access_token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { access_token, user: userData } = response.data;
+      
+      setToken(access_token);
+      setUser(userData);
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error: any) {
+      // Trata erro de conexão (servidor não respondeu)
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_EMPTY_RESPONSE')) {
+        throw new Error('Não foi possível conectar ao servidor. Verifique se o servidor está rodando.');
+      }
+      // Re-lança outros erros
+      throw error;
+    }
   };
 
   const updateUser = async () => {

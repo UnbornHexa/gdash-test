@@ -35,6 +35,15 @@ type WeatherData struct {
 		WeatherCode            []int     `json:"weatherCode"`
 		PrecipitationProbability []int   `json:"precipitationProbability"`
 	} `json:"forecast"`
+	DailyForecast struct {
+		Time                      []string  `json:"time"`
+		WeatherCode               []int     `json:"weatherCode"`
+		TemperatureMax            []float64 `json:"temperatureMax"`
+		TemperatureMin            []float64 `json:"temperatureMin"`
+		PrecipitationSum          []float64 `json:"precipitationSum"`
+		PrecipitationProbabilityMax []int   `json:"precipitationProbabilityMax"`
+		WindSpeedMax              []float64 `json:"windSpeedMax"`
+	} `json:"dailyForecast,omitempty"`
 }
 
 type Worker struct {

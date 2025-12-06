@@ -78,8 +78,8 @@ export class WeatherController {
 
   @Get('export/csv')
   @UseGuards(JwtAuthGuard)
-  async exportCSV(@Res() res: Response) {
-    const csv = await this.weatherService.exportToCSV();
+  async exportCSV(@Res() res: Response, @Query('dateStart') dateStart?: string, @Query('dateEnd') dateEnd?: string) {
+    const csv = await this.weatherService.exportToCSV(dateStart, dateEnd);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=weather-logs.csv');
     res.send(csv);
@@ -87,8 +87,8 @@ export class WeatherController {
 
   @Get('export/xlsx')
   @UseGuards(JwtAuthGuard)
-  async exportXLSX(@Res() res: Response) {
-    const buffer = await this.weatherService.exportToXLSX();
+  async exportXLSX(@Res() res: Response, @Query('dateStart') dateStart?: string, @Query('dateEnd') dateEnd?: string) {
+    const buffer = await this.weatherService.exportToXLSX(dateStart, dateEnd);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=weather-logs.xlsx');
     res.send(buffer);

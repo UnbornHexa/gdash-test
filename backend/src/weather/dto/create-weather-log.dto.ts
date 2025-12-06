@@ -33,4 +33,16 @@ export class CreateWeatherLogDto {
     weatherCode: number[];
     precipitationProbability: number[];
   };
+
+  @IsOptional()
+  @IsObject()
+  dailyForecast?: {
+    time: string[];
+    weatherCode: number[];
+    temperatureMax: number[];
+    temperatureMin: number[];
+    precipitationSum: number[];
+    precipitationProbabilityMax: number[];
+    windSpeedMax: number[];
+  };
 }

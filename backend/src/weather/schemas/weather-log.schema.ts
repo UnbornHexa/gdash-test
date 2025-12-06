@@ -56,6 +56,27 @@ export class WeatherLog extends Document {
     weatherCode: number[];
     precipitationProbability: number[];
   };
+
+  @Prop({
+    type: {
+      time: [String],
+      weatherCode: [Number],
+      temperatureMax: [Number],
+      temperatureMin: [Number],
+      precipitationSum: [Number],
+      precipitationProbabilityMax: [Number],
+      windSpeedMax: [Number],
+    },
+  })
+  dailyForecast?: {
+    time: string[];
+    weatherCode: number[];
+    temperatureMax: number[];
+    temperatureMin: number[];
+    precipitationSum: number[];
+    precipitationProbabilityMax: number[];
+    windSpeedMax: number[];
+  };
 }
 
 export const WeatherLogSchema = SchemaFactory.createForClass(WeatherLog);

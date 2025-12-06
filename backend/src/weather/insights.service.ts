@@ -48,6 +48,9 @@ export class InsightsService {
     // Texto de resumo
     const summary = this.generateSummary(logs, avgTemperature, avgHumidity, temperatureTrend, current);
 
+    // Previsões futuras
+    const futureForecasts = this.generateFutureForecasts(current);
+
     return {
       statistics: {
         averageTemperature: Number(avgTemperature.toFixed(2)),
@@ -68,6 +71,7 @@ export class InsightsService {
       classification: weatherClassification,
       alerts,
       summary,
+      futureForecasts,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -172,14 +176,24 @@ export class InsightsService {
   }
 
   private generateSummary(logs: WeatherLog[], avgTemp: number, avgHumidity: number, trend: string, latest: WeatherLog): string {
-    const days = Math.ceil(logs.length / 24);
+    // Limita aos últimos 7 dias (assumindo 1 registro por hora = 168 registros)
+    const maxDays = 7;
+    const maxRecords = maxDays * 24;
+    const limitedLogs = logs.slice(0, maxRecords);
+    
+    // Calcula os dias baseado nos logs limitados, mas não excede 7 dias
+    const days = Math.min(Math.ceil(limitedLogs.length / 24), maxDays);
+    
+    // Recalcula a temperatura média apenas com os logs dos últimos 7 dias
+    const limitedTemperatures = limitedLogs.map((log) => log.current.temperature);
+    const limitedAvgTemp = this.calculateAverage(limitedTemperatures);
     
     // Separa cada seção em uma linha diferente usando ponto e vírgula como separador
     const items: string[] = [];
     
-    items.push(`Resumo do clima dos últimos ${days} dia(s): Temperatura média ${avgTemp.toFixed(1)}°C com tendência ${trend}`);
+    items.push(`Resumo do clima dos últimos ${days} dia(s): Temperatura média ${limitedAvgTemp.toFixed(1)}°C com tendência ${trend}`);
     items.push(`Condições atuais: ${latest.current.temperature.toFixed(1)}°C, ${latest.current.humidity.toFixed(0)}% de umidade, ${latest.current.windSpeed.toFixed(1)} km/h de velocidade do vento`);
-    items.push(`Classificação geral: ${this.classifyWeather(avgTemp, avgHumidity, logs.map(l => l.current.condition))}`);
+    items.push(`Classificação geral: ${this.classifyWeather(limitedAvgTemp, avgHumidity, limitedLogs.map(l => l.current.condition))}`);
 
     return items.join(' | ');
   }
@@ -187,5 +201,103 @@ export class InsightsService {
   private capitalizeFirst(text: string): string {
     if (!text) return text;
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  }
+
+  generateFutureForecasts(latestLog: WeatherLog): string[] {
+    const forecasts: string[] = [];
+    
+    if (!latestLog.dailyForecast || !latestLog.dailyForecast.time || latestLog.dailyForecast.time.length === 0) {
+      return forecasts;
+    }
+
+    const daily = latestLog.dailyForecast;
+    const weatherCodes = daily.weatherCode || [];
+    const times = daily.time || [];
+    const precipitationSum = daily.precipitationSum || [];
+    const precipitationProbabilityMax = daily.precipitationProbabilityMax || [];
+    const temperatureMax = daily.temperatureMax || [];
+    const temperatureMin = daily.temperatureMin || [];
+
+    // Mapeia códigos meteorológicos para condições
+    const weatherCodeMap: { [key: number]: string } = {
+      0: 'limpo',
+      1: 'principalmente limpo',
+      2: 'parcialmente nublado',
+      3: 'nublado',
+      45: 'nebuloso',
+      48: 'nevoeiro com geada',
+      51: 'chuvisco leve',
+      53: 'chuvisco moderado',
+      55: 'chuvisco denso',
+      61: 'chuva fraca',
+      63: 'chuva moderada',
+      65: 'chuva forte',
+      71: 'neve fraca',
+      73: 'neve moderada',
+      75: 'neve forte',
+      80: 'chuviscos leves',
+      81: 'chuviscos moderados',
+      82: 'chuviscos violentos',
+      85: 'aguaceiros de neve leves',
+      86: 'aguaceiros de neve fortes',
+      95: 'trovoada',
+      96: 'trovoada com granizo leve',
+      99: 'trovoada com granizo forte',
+    };
+
+    // Códigos que indicam chuva forte
+    const heavyRainCodes = [65, 82, 95, 96, 99];
+    // Códigos que indicam sol/limpo
+    const clearCodes = [0, 1];
+
+    // Analisa os próximos 7 dias
+    for (let i = 0; i < Math.min(times.length, 7); i++) {
+      const date = new Date(times[i]);
+      const dayName = this.getDayName(date);
+      const weatherCode = weatherCodes[i] || 0;
+      const precipSum = precipitationSum[i] || 0;
+      const precipProb = precipitationProbabilityMax[i] || 0;
+      const tempMax = temperatureMax[i];
+      const tempMin = temperatureMin[i];
+
+      // Formata a data
+      const dateStr = date.toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit',
+        weekday: 'long'
+      });
+
+      // Detecta chuva forte
+      if (heavyRainCodes.includes(weatherCode) || precipSum > 10 || precipProb > 70) {
+        const dayRef = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : `no dia ${dateStr}`;
+        forecasts.push(`Chuva forte esperada ${dayRef}`);
+      }
+
+      // Detecta muito sol
+      if (clearCodes.includes(weatherCode) && tempMax > 25) {
+        const dayRef = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : `no dia ${dateStr}`;
+        forecasts.push(`Muito sol esperado ${dayRef} com temperatura máxima de ${tempMax.toFixed(1)}°C`);
+      }
+
+      // Detecta temperatura muito alta
+      if (tempMax > 35) {
+        const dayRef = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : `no dia ${dateStr}`;
+        forecasts.push(`Calor extremo esperado ${dayRef} (máxima: ${tempMax.toFixed(1)}°C)`);
+      }
+
+      // Detecta temperatura muito baixa
+      if (tempMin < 5) {
+        const dayRef = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : `no dia ${dateStr}`;
+        forecasts.push(`Frio intenso esperado ${dayRef} (mínima: ${tempMin.toFixed(1)}°C)`);
+      }
+    }
+
+    // Remove duplicatas e limita a 5 previsões mais importantes
+    return [...new Set(forecasts)].slice(0, 5);
+  }
+
+  private getDayName(date: Date): string {
+    const days = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+    return days[date.getDay()];
   }
 }

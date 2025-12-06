@@ -93,6 +93,15 @@ class WeatherCollector:
                     'weather_code',
                     'precipitation_probability'
                 ],
+                'daily': [
+                    'weather_code',
+                    'temperature_2m_max',
+                    'temperature_2m_min',
+                    'precipitation_sum',
+                    'precipitation_probability_max',
+                    'wind_speed_10m_max'
+                ],
+                'forecast_days': 7,
                 'timezone': 'America/Sao_Paulo'
             }
             
@@ -104,6 +113,7 @@ class WeatherCollector:
             # Extrai o clima atual
             current = data.get('current', {})
             hourly = data.get('hourly', {})
+            daily = data.get('daily', {})
             
             weather_data = {
                 'timestamp': datetime.utcnow().isoformat(),
@@ -125,6 +135,15 @@ class WeatherCollector:
                     'windSpeed': hourly.get('wind_speed_10m', [])[:24],
                     'weatherCode': hourly.get('weather_code', [])[:24],
                     'precipitationProbability': hourly.get('precipitation_probability', [])[:24]
+                },
+                'dailyForecast': {
+                    'time': daily.get('time', [])[:7],  # Próximos 7 dias
+                    'weatherCode': daily.get('weather_code', [])[:7],
+                    'temperatureMax': daily.get('temperature_2m_max', [])[:7],
+                    'temperatureMin': daily.get('temperature_2m_min', [])[:7],
+                    'precipitationSum': daily.get('precipitation_sum', [])[:7],
+                    'precipitationProbabilityMax': daily.get('precipitation_probability_max', [])[:7],
+                    'windSpeedMax': daily.get('wind_speed_10m_max', [])[:7]
                 }
             }
             

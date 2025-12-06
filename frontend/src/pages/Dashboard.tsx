@@ -3,6 +3,9 @@ import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Download, Cloud, Droplets, Wind, Thermometer, MapPin } from 'lucide-react';
 
@@ -42,6 +45,7 @@ interface Insights {
   classification: string;
   alerts: string[];
   summary: string;
+  futureForecasts?: string[];
   generatedAt: string;
 }
 
@@ -249,6 +253,33 @@ const roundToInterval = (timestamp: number, intervalMs: number): number => {
   return Math.round(timestamp / intervalMs) * intervalMs;
 };
 
+// Função para filtrar dados por período de datas
+const filterDataByDateRange = (data: WeatherLog[], dateStart: string, dateEnd: string, timeZone: string): WeatherLog[] => {
+  if (!dateStart && !dateEnd) {
+    return data; // Se não há filtro de data, retorna todos os dados
+  }
+
+  return data.filter((log) => {
+    const logDate = parseUTCTimestamp(log.timestamp);
+    
+    // Converte para data no timezone do usuário (apenas data, sem hora)
+    const logDateStr = logDate.toLocaleDateString('en-CA', { timeZone: timeZone }); // formato YYYY-MM-DD
+    
+    if (dateStart && dateEnd) {
+      // Filtro entre duas datas (inclusive)
+      return logDateStr >= dateStart && logDateStr <= dateEnd;
+    } else if (dateStart) {
+      // Apenas data inicial
+      return logDateStr >= dateStart;
+    } else if (dateEnd) {
+      // Apenas data final
+      return logDateStr <= dateEnd;
+    }
+    
+    return true;
+  });
+};
+
 // Função para filtrar dados por intervalo
 // Garante que os horários sejam exatos (ex: 19:00, 19:05, 19:10 para 5min)
 const filterDataByInterval = (data: WeatherLog[], interval: FilterInterval): WeatherLog[] => {
@@ -333,6 +364,14 @@ const Dashboard = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [temperatureFilter, setTemperatureFilter] = useState<FilterInterval>('1h');
   const [windFilter, setWindFilter] = useState<FilterInterval>('1h');
+  const [temperatureDateStart, setTemperatureDateStart] = useState<string>('');
+  const [temperatureDateEnd, setTemperatureDateEnd] = useState<string>('');
+  const [windDateStart, setWindDateStart] = useState<string>('');
+  const [windDateEnd, setWindDateEnd] = useState<string>('');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportType, setExportType] = useState<'csv' | 'xlsx' | null>(null);
+  const [exportDateStart, setExportDateStart] = useState<string>('');
+  const [exportDateEnd, setExportDateEnd] = useState<string>('');
   const [userTimeZone, setUserTimeZone] = useState<string>(() => getUserTimeZone());
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -670,33 +709,47 @@ const Dashboard = () => {
     }
   };
 
-  const handleExportCSV = async () => {
-    try {
-      const response = await api.get('/weather/export/csv', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'weather-logs.csv');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Error exporting CSV:', error);
-    }
+  const handleExportCSV = () => {
+    setExportType('csv');
+    setExportDialogOpen(true);
   };
 
-  const handleExportXLSX = async () => {
+  const handleExportXLSX = () => {
+    setExportType('xlsx');
+    setExportDialogOpen(true);
+  };
+
+  const handleConfirmExport = async () => {
+    if (!exportType) return;
+
     try {
-      const response = await api.get('/weather/export/xlsx', { responseType: 'blob' });
+      const params: any = {};
+      if (exportDateStart) params.dateStart = exportDateStart;
+      if (exportDateEnd) params.dateEnd = exportDateEnd;
+
+      const endpoint = exportType === 'csv' ? '/weather/export/csv' : '/weather/export/xlsx';
+      const filename = exportType === 'csv' ? 'weather-logs.csv' : 'weather-logs.xlsx';
+      
+      const response = await api.get(endpoint, { 
+        params,
+        responseType: 'blob' 
+      });
+      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'weather-logs.xlsx');
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      // Fecha o modal e limpa os campos
+      setExportDialogOpen(false);
+      setExportDateStart('');
+      setExportDateEnd('');
+      setExportType(null);
     } catch (error) {
-      console.error('Error exporting XLSX:', error);
+      console.error(`Error exporting ${exportType.toUpperCase()}:`, error);
     }
   };
 
@@ -798,19 +851,27 @@ const Dashboard = () => {
     return 50; // Desktop
   };
 
-  // Constante para limite de pontos exibidos
-  const MAX_DISPLAY_POINTS = 30;
+  // Limite de pontos exibidos: 15 no mobile, 30 no desktop
+  // Mas só aplica se não houver filtro de período ativo
+  const MAX_DISPLAY_POINTS = windowWidth <= 640 ? 15 : 30;
+  const hasTemperatureDateFilter = temperatureDateStart || temperatureDateEnd;
+  const hasWindDateFilter = windDateStart || windDateEnd;
 
-  // Aplica filtros aos dados
-  let filteredTemperatureData = filterDataByInterval(weatherData, temperatureFilter);
-  let filteredWindData = filterDataByInterval(weatherData, windFilter);
+  // Aplica filtros de período primeiro, depois filtro de intervalo
+  let temperatureDataFiltered = filterDataByDateRange(weatherData, temperatureDateStart, temperatureDateEnd, userTimeZone);
+  let windDataFiltered = filterDataByDateRange(weatherData, windDateStart, windDateEnd, userTimeZone);
 
-  // Limita aos 30 pontos mais recentes APÓS aplicar o filtro
-  // Os dados filtrados estão ordenados do mais antigo ao mais recente, então pegamos os últimos 30
-  if (filteredTemperatureData.length > MAX_DISPLAY_POINTS) {
+  // Aplica filtros de intervalo aos dados já filtrados por período
+  let filteredTemperatureData = filterDataByInterval(temperatureDataFiltered, temperatureFilter);
+  let filteredWindData = filterDataByInterval(windDataFiltered, windFilter);
+
+  // Limita aos pontos mais recentes APÓS aplicar o filtro
+  // Mas só se não houver filtro de período ativo (quando há filtro de período, mostra todos os pontos do período)
+  // Os dados filtrados estão ordenados do mais antigo ao mais recente, então pegamos os últimos N pontos
+  if (!hasTemperatureDateFilter && filteredTemperatureData.length > MAX_DISPLAY_POINTS) {
     filteredTemperatureData = filteredTemperatureData.slice(-MAX_DISPLAY_POINTS);
   }
-  if (filteredWindData.length > MAX_DISPLAY_POINTS) {
+  if (!hasWindDateFilter && filteredWindData.length > MAX_DISPLAY_POINTS) {
     filteredWindData = filteredWindData.slice(-MAX_DISPLAY_POINTS);
   }
 
@@ -1237,25 +1298,6 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {weatherData.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-4 sm:pt-6">
-            <p className="text-blue-800 text-xs sm:text-sm">
-              <strong>ℹ️ Informação:</strong> Exibindo <strong>{weatherData.length}</strong> registro(s) meteorológico(s) coletado(s).
-              {weatherData.length > 0 && (
-                <span className="block sm:inline">
-                  {' '}Período: {formatFullDateTime(weatherData[0].timestamp, userTimeZone)} até {formatFullDateTime(weatherData[weatherData.length - 1].timestamp, userTimeZone)}
-                </span>
-              )}
-              <br />
-              <span className="text-xs text-blue-700 mt-2 block">
-                <strong>Nota:</strong> A API Open-Meteo fornece apenas dados atuais e previsões. Os dados históricos disponíveis são apenas os que foram coletados desde que o sistema está rodando. Para construir um histórico completo, mantenha o sistema rodando continuamente.
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {latest && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
@@ -1356,6 +1398,16 @@ const Dashboard = () => {
                 </ul>
               </div>
             )}
+            {insights?.futureForecasts && insights.futureForecasts.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Previsões Futuras</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {insights.futureForecasts.map((forecast, index) => (
+                    <li key={index} className="text-xs sm:text-sm text-blue-600">{forecast}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1406,6 +1458,42 @@ const Dashboard = () => {
                     </Button>
                   </div>
                 </div>
+              </div>
+              <div className="mt-3 pt-3 border-t flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-1">
+                  <Label htmlFor="temp-date-start" className="text-xs sm:text-sm whitespace-nowrap">Data Inicial:</Label>
+                  <Input
+                    id="temp-date-start"
+                    type="date"
+                    value={temperatureDateStart}
+                    onChange={(e) => setTemperatureDateStart(e.target.value)}
+                    className="h-8 text-xs sm:text-sm w-full sm:w-auto"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-1">
+                  <Label htmlFor="temp-date-end" className="text-xs sm:text-sm whitespace-nowrap">Data Final:</Label>
+                  <Input
+                    id="temp-date-end"
+                    type="date"
+                    value={temperatureDateEnd}
+                    onChange={(e) => setTemperatureDateEnd(e.target.value)}
+                    min={temperatureDateStart || undefined}
+                    className="h-8 text-xs sm:text-sm w-full sm:w-auto"
+                  />
+                </div>
+                {(temperatureDateStart || temperatureDateEnd) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setTemperatureDateStart('');
+                      setTemperatureDateEnd('');
+                    }}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Limpar
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="chart-container">
@@ -1520,6 +1608,42 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
+              <div className="mt-3 pt-3 border-t flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-1">
+                  <Label htmlFor="wind-date-start" className="text-xs sm:text-sm whitespace-nowrap">Data Inicial:</Label>
+                  <Input
+                    id="wind-date-start"
+                    type="date"
+                    value={windDateStart}
+                    onChange={(e) => setWindDateStart(e.target.value)}
+                    className="h-8 text-xs sm:text-sm w-full sm:w-auto"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-1">
+                  <Label htmlFor="wind-date-end" className="text-xs sm:text-sm whitespace-nowrap">Data Final:</Label>
+                  <Input
+                    id="wind-date-end"
+                    type="date"
+                    value={windDateEnd}
+                    onChange={(e) => setWindDateEnd(e.target.value)}
+                    min={windDateStart || undefined}
+                    className="h-8 text-xs sm:text-sm w-full sm:w-auto"
+                  />
+                </div>
+                {(windDateStart || windDateEnd) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setWindDateStart('');
+                      setWindDateEnd('');
+                    }}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="chart-container">
               <ResponsiveContainer width="100%" height={getChartHeight()}>
@@ -1577,6 +1701,57 @@ const Dashboard = () => {
       )}
         </div>
       )}
+
+      {/* Modal de Confirmação de Exportação */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Exportar {exportType?.toUpperCase()}</DialogTitle>
+            <DialogDescription>
+              Selecione o período de datas para exportar os registros meteorológicos. Deixe em branco para exportar todos os registros.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="export-date-start">Data Inicial (opcional)</Label>
+              <Input
+                id="export-date-start"
+                type="date"
+                value={exportDateStart}
+                onChange={(e) => setExportDateStart(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="export-date-end">Data Final (opcional)</Label>
+              <Input
+                id="export-date-end"
+                type="date"
+                value={exportDateEnd}
+                onChange={(e) => setExportDateEnd(e.target.value)}
+                min={exportDateStart || undefined}
+                className="w-full"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExportDialogOpen(false);
+                setExportDateStart('');
+                setExportDateEnd('');
+                setExportType(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmExport}>
+              Exportar {exportType?.toUpperCase()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
