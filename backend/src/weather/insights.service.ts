@@ -3,13 +3,16 @@ import { WeatherLog } from './schemas/weather-log.schema';
 
 @Injectable()
 export class InsightsService {
-  generateInsights(logs: WeatherLog[]): any {
+  generateInsights(logs: WeatherLog[], latestLog?: any): any {
     if (logs.length === 0) {
       return {
         message: 'Nenhum dado meteorológico disponível',
         insights: [],
       };
     }
+
+    // Usa o latestLog fornecido ou o primeiro do array (mais recente)
+    const current = latestLog || logs[0];
 
     const temperatures = logs.map((log) => log.current.temperature);
     const humidities = logs.map((log) => log.current.humidity);
@@ -40,10 +43,10 @@ export class InsightsService {
     const weatherClassification = this.classifyWeather(avgTemperature, avgHumidity, conditions);
 
     // Alertas
-    const alerts = this.generateAlerts(logs, avgTemperature, avgHumidity);
+    const alerts = this.generateAlerts(logs, avgTemperature, avgHumidity, current);
 
     // Texto de resumo
-    const summary = this.generateSummary(logs, avgTemperature, avgHumidity, temperatureTrend);
+    const summary = this.generateSummary(logs, avgTemperature, avgHumidity, temperatureTrend, current);
 
     return {
       statistics: {
@@ -133,9 +136,8 @@ export class InsightsService {
     return 'Moderado';
   }
 
-  private generateAlerts(logs: WeatherLog[], avgTemp: number, avgHumidity: number): string[] {
+  private generateAlerts(logs: WeatherLog[], avgTemp: number, avgHumidity: number, latest: WeatherLog): string[] {
     const alerts: string[] = [];
-    const latest = logs[0];
 
     // Alerta de temperatura alta
     if (latest.current.temperature > 35) {
@@ -169,9 +171,8 @@ export class InsightsService {
     return alerts;
   }
 
-  private generateSummary(logs: WeatherLog[], avgTemp: number, avgHumidity: number, trend: string): string {
+  private generateSummary(logs: WeatherLog[], avgTemp: number, avgHumidity: number, trend: string, latest: WeatherLog): string {
     const days = Math.ceil(logs.length / 24);
-    const latest = logs[0];
     
     // Separa cada seção em uma linha diferente usando ponto e vírgula como separador
     const items: string[] = [];

@@ -56,10 +56,10 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Cloud className="h-12 w-12 text-blue-600" />
+            <Cloud className="h-10 w-10 sm:h-12 sm:w-12 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Painel Meteorológico</CardTitle>
-          <CardDescription>Entre com sua conta</CardDescription>
+          <CardTitle className="text-xl sm:text-2xl">Painel Meteorológico</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Entre com sua conta</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

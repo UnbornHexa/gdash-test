@@ -48,9 +48,24 @@ export class WeatherController {
 
   @Get('insights')
   @UseGuards(JwtAuthGuard)
-  async getInsights(@Query('limit') limit?: string) {
+  async getInsights(@Query('limit') limit?: string, @Query('latitude') latitude?: string, @Query('longitude') longitude?: string) {
     const limitNum = limit ? parseInt(limit, 10) : 50;
-    return this.weatherService.generateInsights(limitNum);
+    
+    // Tenta buscar dados atuais se latitude e longitude forem fornecidos
+    let currentWeather = null;
+    if (latitude && longitude) {
+      try {
+        currentWeather = await this.weatherService.fetchCurrentWeather(
+          parseFloat(latitude),
+          parseFloat(longitude)
+        );
+      } catch (error) {
+        // Se falhar, continua sem dados atuais
+        console.warn('Não foi possível buscar dados atuais para insights:', error);
+      }
+    }
+    
+    return this.weatherService.generateInsights(limitNum, currentWeather);
   }
 
   @Get('export/csv')

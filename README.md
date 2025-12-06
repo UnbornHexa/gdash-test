@@ -69,7 +69,7 @@ Coleta dados meteorológicos da API Open-Meteo a cada hora (configurável) e pub
 - `WEATHER_API_URL`: URL da API Open-Meteo (padrão: https://api.open-meteo.com/v1/forecast)
 - `LATITUDE`: Latitude da localização (padrão: 23.5505 - São Paulo)
 - `LONGITUDE`: Longitude da localização (padrão: -46.6333 - São Paulo)
-- `COLLECTION_INTERVAL`: Intervalo de coleta em segundos (padrão: 3600)
+- `COLLECTION_INTERVAL`: Intervalo de coleta em segundos (padrão: 300 = 5 minutos)
 
 **Executando manualmente**:
 ```bash
@@ -287,7 +287,7 @@ RABBITMQ_URL=amqp://admin:admin123@localhost:5672
 WEATHER_API_URL=https://api.open-meteo.com/v1/forecast
 LATITUDE=23.5505
 LONGITUDE=-46.6333
-COLLECTION_INTERVAL=3600
+COLLECTION_INTERVAL=300
 
 # API NestJS
 PORT=3000

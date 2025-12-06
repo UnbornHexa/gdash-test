@@ -56,4 +56,140 @@
   body {
     @apply bg-background text-foreground;
   }
+  html, body {
+    max-width: 100%;
+  }
+  #root {
+    max-width: 100%;
+  }
+}
+
+/* Media queries para responsividade dos gráficos */
+@layer utilities {
+  /* Ajustes para telas muito pequenas (até 320px) */
+  @media (max-width: 320px) {
+    .recharts-wrapper {
+      font-size: 10px !important;
+    }
+    .recharts-cartesian-axis-tick-value {
+      font-size: 9px !important;
+    }
+    .recharts-legend-wrapper {
+      font-size: 9px !important;
+    }
+    .recharts-tooltip {
+      font-size: 10px !important;
+    }
+  }
+
+  /* Ajustes para mobile (até 640px) */
+  @media (max-width: 640px) {
+    .recharts-wrapper {
+      font-size: 11px !important;
+    }
+    .recharts-cartesian-axis-tick-value {
+      font-size: 10px !important;
+    }
+    .recharts-legend-wrapper {
+      font-size: 10px !important;
+      padding: 4px !important;
+    }
+    .recharts-tooltip {
+      font-size: 11px !important;
+      padding: 6px !important;
+    }
+    .recharts-cartesian-axis {
+      font-size: 10px !important;
+    }
+    /* Garante que os gráficos não ultrapassem a largura */
+    .recharts-responsive-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: auto;
+    }
+    /* Ajusta margens para mobile */
+    .recharts-surface {
+      overflow: visible;
+    }
+  }
+
+  /* Ajustes para tablets (641px até 1024px) */
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .recharts-wrapper {
+      font-size: 12px !important;
+    }
+    .recharts-cartesian-axis-tick-value {
+      font-size: 11px !important;
+    }
+    .recharts-legend-wrapper {
+      font-size: 11px !important;
+    }
+    .recharts-tooltip {
+      font-size: 12px !important;
+    }
+  }
+
+  /* Ajustes para telas grandes (acima de 1024px) */
+  @media (min-width: 1025px) {
+    .recharts-wrapper {
+      font-size: 13px !important;
+    }
+    .recharts-cartesian-axis-tick-value {
+      font-size: 12px !important;
+    }
+    .recharts-legend-wrapper {
+      font-size: 12px !important;
+    }
+    .recharts-tooltip {
+      font-size: 13px !important;
+    }
+  }
+
+  /* Garante que tooltips sejam visíveis em todas as resoluções */
+  .recharts-tooltip-wrapper {
+    z-index: 1000 !important;
+  }
+
+  /* Ajusta legendas para mobile */
+  @media (max-width: 640px) {
+    .recharts-legend-item {
+      margin-right: 8px !important;
+      margin-bottom: 4px !important;
+    }
+    .recharts-legend-item-text {
+      margin-left: 4px !important;
+    }
+  }
+
+  /* Previne overflow horizontal */
+  .recharts-responsive-container {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Ajusta espaçamento do eixo Y em mobile */
+  @media (max-width: 640px) {
+    .recharts-cartesian-axis.yAxis {
+      width: 35px !important;
+    }
+  }
+
+  /* Ajusta altura mínima dos gráficos */
+  @media (max-width: 640px) {
+    .chart-container {
+      min-height: 250px;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 1024px) {
+    .chart-container {
+      min-height: 280px;
+    }
+  }
+
+  @media (min-width: 1025px) {
+    .chart-container {
+      min-height: 300px;
+    }
+  }
 }

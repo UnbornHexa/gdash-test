@@ -69,7 +69,7 @@ services:
       WEATHER_API_URL: https://api.open-meteo.com/v1/forecast
       LATITUDE: ${LATITUDE:-23.5505}
       LONGITUDE: ${LONGITUDE:-46.6333}
-      COLLECTION_INTERVAL: ${COLLECTION_INTERVAL:-3600}
+      COLLECTION_INTERVAL: ${COLLECTION_INTERVAL:-60}
     depends_on:
       - rabbitmq
     networks:

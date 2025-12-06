@@ -81,10 +81,13 @@ const Users = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
-        <Button onClick={() => { setShowCreateForm(!showCreateForm); setEditingUser(null); setFormData({ email: '', password: '', name: '' }); }}>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
+        <Button 
+          onClick={() => { setShowCreateForm(!showCreateForm); setEditingUser(null); setFormData({ email: '', password: '', name: '' }); }}
+          className="w-full sm:w-auto"
+        >
           {showCreateForm ? 'Cancelar' : 'Criar Usuário'}
         </Button>
       </div>
@@ -134,11 +137,12 @@ const Users = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Todos os Usuários</CardTitle>
-          <CardDescription>Gerencie os usuários do sistema</CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Todos os Usuários</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Gerencie os usuários do sistema</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -170,6 +174,56 @@ const Users = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card view */}
+          <div className="md:hidden space-y-4">
+            {users.map((user) => (
+              <Card key={user._id} className="p-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">E-mail</p>
+                    <p className="text-sm font-medium text-gray-900 break-all">{user.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Nome</p>
+                    <p className="text-sm text-gray-700">{user.name || '-'}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Status</p>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.isActive ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Criado</p>
+                      <p className="text-sm text-gray-700">
+                        {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => startEdit(user)}
+                      className="flex-1"
+                    >
+                      Editar
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => handleDelete(user._id)}
+                      className="flex-1"
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>

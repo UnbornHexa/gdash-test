@@ -65,14 +65,47 @@ export class WeatherService {
     return this.weatherLogModel.findOne().sort({ timestamp: -1 }).exec();
   }
 
-  async generateInsights(limit: number = 50) {
+  async generateInsights(limit: number = 50, currentWeather?: any) {
     const recentLogs = await this.weatherLogModel
       .find()
       .sort({ timestamp: -1 })
       .limit(limit)
       .exec();
 
-    return this.insightsService.generateInsights(recentLogs);
+    // Se dados atuais foram fornecidos, usa eles como o mais recente
+    // Caso contrário, usa o último log do banco
+    let latestLog: any = recentLogs[0];
+    
+    if (currentWeather) {
+      if (recentLogs.length > 0) {
+        // Compara timestamps para ver qual é mais recente
+        const currentTimestamp = new Date(currentWeather.timestamp).getTime();
+        const latestLogTimestamp = new Date(recentLogs[0].timestamp).getTime();
+        
+        // Se os dados atuais são mais recentes, cria um objeto simples com os dados atuais
+        // mas mantém a estrutura do log mais recente para compatibilidade
+        if (currentTimestamp > latestLogTimestamp) {
+          // Cria um objeto simples que será usado apenas para insights
+          // Não precisa ser uma instância de WeatherLog do Mongoose
+          const baseLog = recentLogs[0].toObject ? recentLogs[0].toObject() : recentLogs[0];
+          latestLog = {
+            ...baseLog,
+            timestamp: currentWeather.timestamp,
+            current: currentWeather.current,
+          };
+        }
+      } else {
+        // Se não há logs no banco, cria um objeto simples com os dados atuais
+        latestLog = {
+          timestamp: currentWeather.timestamp,
+          location: currentWeather.location,
+          current: currentWeather.current,
+          forecast: currentWeather.forecast,
+        };
+      }
+    }
+
+    return this.insightsService.generateInsights(recentLogs, latestLog);
   }
 
   async exportToCSV(): Promise<string> {

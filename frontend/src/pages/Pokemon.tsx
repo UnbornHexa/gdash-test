@@ -66,39 +66,39 @@ const Pokemon = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Explorador de Pokémon</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Explorador de Pokémon</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Lista de Pokémon</CardTitle>
-              <CardDescription>Página {page} de {totalPages}</CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Lista de Pokémon</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Página {page} de {totalPages}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                 {pokemons.map((pokemon) => (
                   <Card
                     key={pokemon.id}
                     className="cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => fetchPokemonDetail(pokemon.id)}
                   >
-                    <CardContent className="p-4 text-center">
+                    <CardContent className="p-3 sm:p-4 text-center">
                       {pokemon.image && (
                         <img
                           src={pokemon.image}
                           alt={pokemon.name}
-                          className="w-24 h-24 mx-auto mb-2"
+                          className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-2"
                         />
                       )}
-                      <h3 className="font-semibold capitalize">{pokemon.name}</h3>
+                      <h3 className="font-semibold capitalize text-xs sm:text-sm">{pokemon.name}</h3>
                       {pokemon.types && (
-                        <div className="flex justify-center gap-1 mt-2">
+                        <div className="flex flex-wrap justify-center gap-1 mt-2">
                           {pokemon.types.map((type) => (
                             <span
                               key={type}
-                              className="px-2 py-1 text-xs bg-gray-200 rounded capitalize"
+                              className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-gray-200 rounded capitalize"
                             >
                               {type}
                             </span>
@@ -110,19 +110,23 @@ const Pokemon = () => {
                 ))}
               </div>
 
-              <div className="flex justify-between items-center mt-6">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4 sm:mt-6">
                 <Button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
+                  className="w-full sm:w-auto"
+                  size="sm"
                 >
                   Anterior
                 </Button>
-                <span className="text-sm text-gray-500">
+                <span className="text-xs sm:text-sm text-gray-500">
                   Página {page} de {totalPages}
                 </span>
                 <Button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
+                  className="w-full sm:w-auto"
+                  size="sm"
                 >
                   Próxima
                 </Button>
@@ -135,23 +139,23 @@ const Pokemon = () => {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle className="capitalize">{selectedPokemon.name}</CardTitle>
-                <CardDescription>Pokémon #{selectedPokemon.id}</CardDescription>
+                <CardTitle className="capitalize text-lg sm:text-xl">{selectedPokemon.name}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Pokémon #{selectedPokemon.id}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4">
                 {selectedPokemon.sprites.frontDefault && (
                   <div className="text-center">
                     <img
                       src={selectedPokemon.sprites.frontDefault}
                       alt={selectedPokemon.name}
-                      className="w-32 h-32 mx-auto"
+                      className="w-24 h-24 sm:w-32 sm:h-32 mx-auto"
                     />
                   </div>
                 )}
 
                 <div>
-                  <h3 className="font-semibold mb-2">Informações Básicas</h3>
-                  <div className="space-y-1 text-sm">
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Informações Básicas</h3>
+                  <div className="space-y-1 text-xs sm:text-sm">
                     <p><span className="font-medium">Altura:</span> {selectedPokemon.height / 10}m</p>
                     <p><span className="font-medium">Peso:</span> {selectedPokemon.weight / 10}kg</p>
                     <p><span className="font-medium">Experiência Base:</span> {selectedPokemon.baseExperience}</p>
@@ -159,7 +163,7 @@ const Pokemon = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Tipos</h3>
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Tipos</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedPokemon.types.map((type) => (
                       <span
@@ -173,10 +177,10 @@ const Pokemon = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Habilidades</h3>
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Habilidades</h3>
                   <div className="space-y-1">
                     {selectedPokemon.abilities.map((ability, index) => (
-                      <p key={index} className="text-sm capitalize">
+                      <p key={index} className="text-xs sm:text-sm capitalize">
                         {ability.ability.name}
                         {ability.isHidden && <span className="text-gray-500"> (Oculta)</span>}
                       </p>
@@ -185,10 +189,10 @@ const Pokemon = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Estatísticas Base</h3>
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">Estatísticas Base</h3>
                   <div className="space-y-1">
                     {selectedPokemon.stats.map((stat, index) => (
-                      <div key={index} className="flex justify-between text-sm">
+                      <div key={index} className="flex justify-between text-xs sm:text-sm">
                         <span className="capitalize">{stat.stat.name.replace('-', ' ')}:</span>
                         <span className="font-medium">{stat.baseStat}</span>
                       </div>

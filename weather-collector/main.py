@@ -20,7 +20,7 @@ class WeatherCollector:
         self.latitude = float(os.getenv('LATITUDE', '23.5505'))
         self.longitude = float(os.getenv('LONGITUDE', '-46.6333'))
         self.rabbitmq_url = os.getenv('RABBITMQ_URL', 'amqp://admin:admin123@localhost:5672')
-        self.collection_interval = int(os.getenv('COLLECTION_INTERVAL', '3600'))
+        self.collection_interval = int(os.getenv('COLLECTION_INTERVAL', '60'))  # Padrão: 1 minuto (60 segundos)
         self.queue_name = 'weather_data'
         
         # Parse da URL do RabbitMQ
@@ -135,11 +135,25 @@ class WeatherCollector:
             print(f"Erro ao enviar para RabbitMQ: {e}")
             return False
     
+    def wait_until_next_minute(self):
+        """Aguarda até o início do próximo minuto"""
+        now = datetime.now()
+        # Calcula quantos segundos faltam para o próximo minuto
+        seconds_until_next_minute = 60 - now.second
+        if seconds_until_next_minute > 0:
+            time.sleep(seconds_until_next_minute)
+    
     def run(self):
         """Loop principal"""
         print("Serviço Coletor Meteorológico Iniciado")
         print(f"Coletando dados meteorológicos a cada {self.collection_interval} segundos")
         print(f"Localização: {self.latitude}, {self.longitude}")
+        
+        # Sincroniza com o início do próximo minuto na primeira execução
+        if self.collection_interval == 60:
+            print("Sincronizando com o início do próximo minuto...")
+            self.wait_until_next_minute()
+            print(f"Coletando dados agora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         while True:
             try:
@@ -149,13 +163,19 @@ class WeatherCollector:
                 if weather_data:
                     # Envia para RabbitMQ
                     if self.send_to_rabbitmq(weather_data):
-                        print(f"Temperatura: {weather_data['current']['temperature']}°C")
-                        print(f"Umidade: {weather_data['current']['humidity']}%")
-                        print(f"Velocidade do Vento: {weather_data['current']['windSpeed']} km/h")
-                        print(f"Condição: {weather_data['current']['condition']}")
+                        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        print(f"[{current_time}] Dados coletados:")
+                        print(f"  Temperatura: {weather_data['current']['temperature']}°C")
+                        print(f"  Umidade: {weather_data['current']['humidity']}%")
+                        print(f"  Velocidade do Vento: {weather_data['current']['windSpeed']} km/h")
+                        print(f"  Condição: {weather_data['current']['condition']}")
                 
-                # Aguarda próxima coleta
-                time.sleep(self.collection_interval)
+                # Se o intervalo for 60 segundos, sincroniza com o próximo minuto
+                if self.collection_interval == 60:
+                    self.wait_until_next_minute()
+                else:
+                    # Para outros intervalos, usa sleep normal
+                    time.sleep(self.collection_interval)
                 
             except KeyboardInterrupt:
                 print("\nEncerrando...")

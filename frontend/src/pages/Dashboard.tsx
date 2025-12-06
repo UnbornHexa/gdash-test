@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Download, Cloud, Droplets, Wind, Thermometer, MapPin } from 'lucide-react';
 
 interface WeatherLog {
@@ -122,6 +122,205 @@ const formatSummary = (summary: string): React.ReactNode[] => {
   });
 };
 
+// Tipos de intervalo de filtro
+type FilterInterval = '1min' | '5min' | '30min' | '1h';
+
+// Função auxiliar para obter o fuso horário do navegador do usuário
+const getUserTimeZone = (): string => {
+  try {
+    // Detecta automaticamente o fuso horário do navegador
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return timeZone;
+  } catch (error) {
+    console.warn('Não foi possível detectar o fuso horário, usando padrão UTC');
+    // Fallback: usa o fuso horário do sistema ou UTC
+    return 'UTC';
+  }
+};
+
+// Função auxiliar para garantir que timestamps UTC sejam interpretados corretamente
+const parseUTCTimestamp = (timestamp: string): Date => {
+  // Se o timestamp não tem 'Z' no final e não tem offset, assume UTC
+  if (!timestamp.endsWith('Z') && !timestamp.includes('+') && !timestamp.includes('-', 10)) {
+    return new Date(timestamp + 'Z');
+  }
+  return new Date(timestamp);
+};
+
+// Função para arredondar timestamp para o intervalo exato no fuso horário local
+// Retorna uma string formatada diretamente com o horário arredondado
+const roundTimestampToInterval = (timestamp: string, interval: FilterInterval, userTimeZone: string): string => {
+  const date = parseUTCTimestamp(timestamp);
+  const timeZone = userTimeZone || getUserTimeZone();
+  
+  // Usa Intl.DateTimeFormat para obter componentes no timezone local
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(date);
+  const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(parts.find(p => p.type === 'month')?.value || '1') - 1; // 0-indexed
+  const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+  
+  // Converte intervalo para minutos
+  const intervalMinutes: Record<FilterInterval, number> = {
+    '1min': 1,
+    '5min': 5,
+    '30min': 30,
+    '1h': 60,
+  };
+  
+  const minutes = intervalMinutes[interval];
+  
+  // Arredonda minutos para o intervalo exato
+  let roundedMinutes = Math.round(minute / minutes) * minutes;
+  let roundedHour = hour;
+  
+  // Trata overflow de minutos (ex: se arredondar 58 para 60, vira 1h a mais)
+  if (roundedMinutes >= 60) {
+    roundedMinutes = 0;
+    roundedHour = (roundedHour + 1) % 24;
+  }
+  
+  // Formata diretamente como string HH:MM no timezone local
+  const hourStr = roundedHour.toString().padStart(2, '0');
+  const minuteStr = roundedMinutes.toString().padStart(2, '0');
+  
+  return `${hourStr}:${minuteStr}`;
+};
+
+// Função para formatar apenas horário (sem data)
+// Garante que timestamps UTC sejam exibidos no fuso horário local do usuário
+// Se interval for fornecido, arredonda para o intervalo exato antes de formatar
+const formatChartLabel = (timestamp: string, userTimeZone?: string, interval?: FilterInterval) => {
+  const timeZone = userTimeZone || getUserTimeZone();
+  
+  if (interval) {
+    // Arredonda para o intervalo exato e retorna diretamente
+    return roundTimestampToInterval(timestamp, interval, timeZone);
+  } else {
+    // Usa timestamp original e formata normalmente
+    const date = parseUTCTimestamp(timestamp);
+    return date.toLocaleTimeString('pt-BR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: timeZone
+    });
+  }
+};
+
+// Função para formatar data completa no fuso horário local do usuário
+const formatFullDateTime = (timestamp: string, userTimeZone?: string) => {
+  const date = parseUTCTimestamp(timestamp);
+  const timeZone = userTimeZone || getUserTimeZone();
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: timeZone
+  });
+};
+
+// Função para formatar apenas data no fuso horário local do usuário
+const formatDateOnly = (timestamp: string, userTimeZone?: string) => {
+  const date = parseUTCTimestamp(timestamp);
+  const timeZone = userTimeZone || getUserTimeZone();
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: timeZone
+  });
+};
+
+// Função para arredondar timestamp para o intervalo exato mais próximo
+const roundToInterval = (timestamp: number, intervalMs: number): number => {
+  return Math.round(timestamp / intervalMs) * intervalMs;
+};
+
+// Função para filtrar dados por intervalo
+// Garante que os horários sejam exatos (ex: 19:00, 19:05, 19:10 para 5min)
+const filterDataByInterval = (data: WeatherLog[], interval: FilterInterval): WeatherLog[] => {
+  if (data.length === 0) return [];
+  
+  // Converte intervalo para milissegundos
+  const intervalMs: Record<FilterInterval, number> = {
+    '1min': 60 * 1000,
+    '5min': 5 * 60 * 1000,
+    '30min': 30 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+  };
+  
+  const intervalValue = intervalMs[interval];
+  const filtered: WeatherLog[] = [];
+  
+  // Ordena dados do mais antigo ao mais recente
+  const sortedData = [...data].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+  
+  if (sortedData.length === 0) return [];
+  
+  // Encontra o primeiro timestamp e arredonda para o intervalo exato anterior
+  const firstTimestamp = new Date(sortedData[0].timestamp).getTime();
+  const firstRounded = roundToInterval(firstTimestamp, intervalValue);
+  
+  // Gera todos os intervalos exatos desde o primeiro arredondado até o último timestamp
+  const lastTimestamp = new Date(sortedData[sortedData.length - 1].timestamp).getTime();
+  const targetIntervals: number[] = [];
+  
+  for (let targetTime = firstRounded; targetTime <= lastTimestamp; targetTime += intervalValue) {
+    targetIntervals.push(targetTime);
+  }
+  
+  // Para cada intervalo exato, encontra o ponto de dados mais próximo
+  for (const targetTime of targetIntervals) {
+    let closestLog: WeatherLog | null = null;
+    let closestDistance = Infinity;
+    
+    // Procura o ponto mais próximo deste intervalo exato
+    for (const log of sortedData) {
+      const logTime = new Date(log.timestamp).getTime();
+      const distance = Math.abs(logTime - targetTime);
+      
+      // Aceita pontos dentro de metade do intervalo (ex: para 5min, aceita até 2.5min de diferença)
+      if (distance <= intervalValue / 2 && distance < closestDistance) {
+        closestDistance = distance;
+        closestLog = log;
+      }
+    }
+    
+    // Se encontrou um ponto próximo, adiciona (evita duplicatas)
+    if (closestLog && !filtered.find(f => f._id === closestLog!._id)) {
+      filtered.push(closestLog);
+    }
+  }
+  
+  // Se não encontrou nenhum ponto, pelo menos retorna o primeiro e último
+  if (filtered.length === 0 && sortedData.length > 0) {
+    filtered.push(sortedData[0]);
+    if (sortedData.length > 1) {
+      filtered.push(sortedData[sortedData.length - 1]);
+    }
+  }
+  
+  // Ordena novamente por timestamp para garantir ordem correta
+  return filtered.sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
+
 const Dashboard = () => {
   const { user, updateUser } = useAuth();
   const [weatherData, setWeatherData] = useState<WeatherLog[]>([]);
@@ -132,6 +331,22 @@ const Dashboard = () => {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationInfo, setLocationInfo] = useState<{ city: string; state: string } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [temperatureFilter, setTemperatureFilter] = useState<FilterInterval>('1h');
+  const [windFilter, setWindFilter] = useState<FilterInterval>('1h');
+  const [userTimeZone, setUserTimeZone] = useState<string>(() => getUserTimeZone());
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastDataCountRef = useRef<number>(0);
+
+  // Hook para detectar mudanças no tamanho da janela
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Obtém localização do usuário
   useEffect(() => {
@@ -219,8 +434,26 @@ const Dashboard = () => {
 
       fetchLocationInfo();
       fetchData();
-      const interval = setInterval(fetchData, 60000); // Atualiza a cada minuto
-      return () => clearInterval(interval);
+      
+      // Limpa intervalo anterior se existir
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      
+      // Atualiza a cada 10 segundos para garantir que novos dados apareçam rapidamente
+      // Os dados são coletados a cada 1 minuto (60 segundos), então 10 segundos garante
+      // que os dados apareçam em até 10 segundos após serem coletados
+      intervalRef.current = setInterval(() => {
+        console.log('🔄 Atualizando dados automaticamente...');
+        fetchData();
+      }, 10000); // Atualiza a cada 10 segundos para detectar novos dados rapidamente
+      
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
     }
   }, [userLocation]);
 
@@ -288,9 +521,10 @@ const Dashboard = () => {
         if (allLogs.length > 0) {
           const oldest = allLogs[allLogs.length - 1];
           const newest = allLogs[0];
+          const detectedTimeZone = getUserTimeZone();
           console.log('📅 Período:', {
-            maisAntigo: new Date(oldest.timestamp).toLocaleString('pt-BR'),
-            maisRecente: new Date(newest.timestamp).toLocaleString('pt-BR'),
+            maisAntigo: parseUTCTimestamp(oldest.timestamp).toLocaleString('pt-BR', { timeZone: detectedTimeZone }),
+            maisRecente: parseUTCTimestamp(newest.timestamp).toLocaleString('pt-BR', { timeZone: detectedTimeZone }),
           });
         }
 
@@ -299,9 +533,16 @@ const Dashboard = () => {
 
       // Busca insights e todos os logs em paralelo
       // Passa um limite muito alto para insights usar todos os dados históricos
+      // Também passa a localização para que os insights usem dados atuais se disponíveis
       const [allLogs, insightsResponse] = await Promise.all([
         fetchAllLogs(),
-        api.get('/weather/insights', { params: { limit: 10000 } }).catch(() => ({ data: null })),
+        api.get('/weather/insights', { 
+          params: { 
+            limit: 10000,
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude
+          } 
+        }).catch(() => ({ data: null })),
       ]);
 
       // Usa dados em tempo real se disponível, senão usa o último log
@@ -314,14 +555,31 @@ const Dashboard = () => {
       }
 
       // Trata dados de logs - inverte para mostrar do mais antigo ao mais recente no gráfico
-      // IMPORTANTE: Mostra TODOS os dados históricos, independente da localização
+      // IMPORTANTE: Armazena todos os dados, a limitação será feita após aplicar os filtros
       if (allLogs.length > 0) {
+        const previousCount = lastDataCountRef.current;
+        const newCount = allLogs.length;
+        
+        // Verifica se há novos dados comparando timestamps do mais recente
+        const previousLatest = weatherData.length > 0 ? weatherData[weatherData.length - 1] : null;
+        const currentLatest = allLogs[0]; // O primeiro é o mais recente (ordenado por timestamp desc)
+        
+        const hasNewData = !previousLatest || 
+          new Date(currentLatest.timestamp).getTime() > new Date(previousLatest.timestamp).getTime();
+        
+        if (newCount !== previousCount || hasNewData) {
+          const timestamp = new Date(currentLatest.timestamp).toLocaleString('pt-BR');
+          console.log(`📊 Novos dados detectados! ${previousCount} → ${newCount} registros | Mais recente: ${timestamp}`);
+          lastDataCountRef.current = newCount;
+        }
+        
         console.log(`📊 Preparando ${allLogs.length} registros para exibição`);
         const sortedLogs = [...allLogs].reverse(); // Do mais antigo ao mais recente
         setWeatherData(sortedLogs);
       } else {
         console.warn('⚠️ Nenhum log encontrado no banco de dados');
         setWeatherData([]);
+        lastDataCountRef.current = 0;
       }
 
       // Trata insights
@@ -369,54 +627,184 @@ const Dashboard = () => {
     }
   };
 
-  // Função para formatar apenas horário (sem data)
-  const formatChartLabel = (timestamp: string) => {
-    const date = new Date(timestamp);
-    // Sempre mostra apenas horário
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  // Calcula o intervalo de labels do eixo X de forma inteligente
+  // Mostra mais labels quando há poucos dados para melhor legibilidade
+  // Ajusta baseado no tamanho da tela
+  const calculateXAxisInterval = (dataLength: number) => {
+    if (dataLength === 0) return 0;
+    
+    // Detecta largura da tela usando o estado
+    const isMobile = windowWidth <= 640;
+    const isTablet = windowWidth > 640 && windowWidth <= 1024;
+    
+    // Em mobile, mostra menos labels para evitar sobreposição
+    if (isMobile) {
+      if (dataLength <= 10) {
+        return 0; // Mostra todos os labels
+      } else if (dataLength <= 20) {
+        return 1; // Mostra 1 a cada 2
+      } else if (dataLength <= 30) {
+        return Math.floor(dataLength / 8); // Aproximadamente 8 labels
+      } else {
+        return Math.floor(dataLength / 6); // Aproximadamente 6 labels
+      }
+    }
+    
+    // Em tablet, mostra quantidade intermediária
+    if (isTablet) {
+      if (dataLength <= 30) {
+        return 0; // Mostra todos os labels
+      } else if (dataLength <= 50) {
+        return 1; // Mostra 1 a cada 2
+      } else if (dataLength <= 100) {
+        return Math.floor(dataLength / 12); // Aproximadamente 12 labels
+      } else {
+        return Math.floor(dataLength / 10); // Aproximadamente 10 labels
+      }
+    }
+    
+    // Desktop: comportamento original
+    if (dataLength <= 30) {
+      return 0; // Mostra todos os labels
+    } else if (dataLength <= 50) {
+      return 1; // Mostra 1 a cada 2 (pula 1)
+    } else if (dataLength <= 100) {
+      return Math.floor(dataLength / 15); // Aproximadamente 15 labels
+    } else {
+      // Com muitos dados, calcula para mostrar cerca de 10-12 labels
+      return Math.floor(dataLength / 10);
+    }
   };
 
-  // Verifica se há dados de múltiplos dias
-  const hasMultipleDays = (() => {
-    if (weatherData.length === 0) return false;
-    const firstDay = new Date(weatherData[0].timestamp).toDateString();
-    const lastDay = new Date(weatherData[weatherData.length - 1].timestamp).toDateString();
-    return firstDay !== lastDay;
-  })();
+  // Calcula altura do gráfico baseado no tamanho da tela
+  const getChartHeight = () => {
+    if (windowWidth <= 640) {
+      return 250; // Mobile
+    } else if (windowWidth <= 1024) {
+      return 280; // Tablet
+    }
+    return 300; // Desktop
+  };
 
-  const chartData = weatherData.map((log, index) => {
-    const currentDate = new Date(log.timestamp);
-    const prevDate = index > 0 ? new Date(weatherData[index - 1].timestamp) : null;
-    const isNewDay = prevDate && currentDate.toDateString() !== prevDate.toDateString();
+  // Calcula margens do gráfico baseado no tamanho da tela
+  const getChartMargins = (hasMultipleDays: boolean) => {
+    const isMobile = windowWidth <= 640;
+    const isTablet = windowWidth > 640 && windowWidth <= 1024;
+    
+    if (isMobile) {
+      return {
+        bottom: hasMultipleDays ? 80 : 40,
+        top: 5,
+        right: 10,
+        left: 30
+      };
+    } else if (isTablet) {
+      return {
+        bottom: hasMultipleDays ? 90 : 50,
+        top: 10,
+        right: 30,
+        left: 40
+      };
+    }
     
     return {
-      time: formatChartLabel(log.timestamp),
-      timeOnly: formatChartLabel(log.timestamp), // Mantém apenas horário para o eixo X
-      uniqueKey: `${log.timestamp}-${index}`, // Chave única para identificar cada ponto
-      fullDateTime: currentDate.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
+      bottom: hasMultipleDays ? 100 : 50,
+      top: 10,
+      right: 50,
+      left: 50
+    };
+  };
+
+  // Calcula largura do eixo Y baseado no tamanho da tela
+  const getYAxisWidth = () => {
+    if (windowWidth <= 640) {
+      return 35; // Mobile
+    } else if (windowWidth <= 1024) {
+      return 40; // Tablet
+    }
+    return 50; // Desktop
+  };
+
+  // Constante para limite de pontos exibidos
+  const MAX_DISPLAY_POINTS = 30;
+
+  // Aplica filtros aos dados
+  let filteredTemperatureData = filterDataByInterval(weatherData, temperatureFilter);
+  let filteredWindData = filterDataByInterval(weatherData, windFilter);
+
+  // Limita aos 30 pontos mais recentes APÓS aplicar o filtro
+  // Os dados filtrados estão ordenados do mais antigo ao mais recente, então pegamos os últimos 30
+  if (filteredTemperatureData.length > MAX_DISPLAY_POINTS) {
+    filteredTemperatureData = filteredTemperatureData.slice(-MAX_DISPLAY_POINTS);
+  }
+  if (filteredWindData.length > MAX_DISPLAY_POINTS) {
+    filteredWindData = filteredWindData.slice(-MAX_DISPLAY_POINTS);
+  }
+
+  // Processa dados para o gráfico de temperatura/umidade
+  const temperatureChartData = filteredTemperatureData.map((log, index) => {
+    const currentDate = parseUTCTimestamp(log.timestamp);
+    const prevDate = index > 0 ? parseUTCTimestamp(filteredTemperatureData[index - 1].timestamp) : null;
+    // Compara datas no fuso horário local do usuário
+    const currentDateStr = currentDate.toLocaleDateString('pt-BR', { timeZone: userTimeZone });
+    const prevDateStr = prevDate ? prevDate.toLocaleDateString('pt-BR', { timeZone: userTimeZone }) : null;
+    const isNewDay = prevDate && currentDateStr !== prevDateStr;
+    
+    // Arredonda o timestamp para o intervalo exato antes de formatar
+    const roundedTime = formatChartLabel(log.timestamp, userTimeZone, temperatureFilter);
+    
+    // Formata data completa com horário arredondado para o tooltip
+    const dateStr = formatDateOnly(log.timestamp, userTimeZone);
+    const fullDateTimeRounded = `${dateStr} ${roundedTime}`;
+    
+    return {
+      time: roundedTime,
+      timeOnly: roundedTime,
+      uniqueKey: `${log.timestamp}-${index}-temp`,
+      fullDateTime: fullDateTimeRounded,
       timestamp: log.timestamp,
       temperature: log.current.temperature,
       humidity: log.current.humidity,
       windSpeed: log.current.windSpeed,
       isNewDay: isNewDay || false,
-      dayStart: isNewDay ? currentDate.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }) : null,
-      chartIndex: index, // Índice no array para referência única
+      dayStart: isNewDay ? formatDateOnly(log.timestamp, userTimeZone) : null,
+      chartIndex: index,
     };
   });
 
-  // Cria estrutura de dados para os labels do eixo X
-  // Armazena informação se tem data para renderização customizada
-  const xAxisLabelsData = chartData.map((item) => {
+  // Processa dados para o gráfico de vento
+  const windChartData = filteredWindData.map((log, index) => {
+    const currentDate = parseUTCTimestamp(log.timestamp);
+    const prevDate = index > 0 ? parseUTCTimestamp(filteredWindData[index - 1].timestamp) : null;
+    // Compara datas no fuso horário local do usuário
+    const currentDateStr = currentDate.toLocaleDateString('pt-BR', { timeZone: userTimeZone });
+    const prevDateStr = prevDate ? prevDate.toLocaleDateString('pt-BR', { timeZone: userTimeZone }) : null;
+    const isNewDay = prevDate && currentDateStr !== prevDateStr;
+    
+    // Arredonda o timestamp para o intervalo exato antes de formatar
+    const roundedTime = formatChartLabel(log.timestamp, userTimeZone, windFilter);
+    
+    // Formata data completa com horário arredondado para o tooltip
+    const dateStr = formatDateOnly(log.timestamp, userTimeZone);
+    const fullDateTimeRounded = `${dateStr} ${roundedTime}`;
+    
+    return {
+      time: roundedTime,
+      timeOnly: roundedTime,
+      uniqueKey: `${log.timestamp}-${index}-wind`,
+      fullDateTime: fullDateTimeRounded,
+      timestamp: log.timestamp,
+      temperature: log.current.temperature,
+      humidity: log.current.humidity,
+      windSpeed: log.current.windSpeed,
+      isNewDay: isNewDay || false,
+      dayStart: isNewDay ? formatDateOnly(log.timestamp, userTimeZone) : null,
+      chartIndex: index,
+    };
+  });
+
+  // Cria estrutura de dados para os labels do eixo X (temperatura)
+  const temperatureXAxisLabelsData = temperatureChartData.map((item) => {
     if (item.isNewDay && item.dayStart) {
       return {
         time: item.timeOnly,
@@ -430,30 +818,89 @@ const Dashboard = () => {
     };
   });
 
-  // Componente customizado para renderizar ticks do eixo X com data abaixo do horário
-  const CustomTick = ({ x, y, payload, index }: any) => {
-    // Encontra o item correspondente no chartData usando o uniqueKey
-    const chartItemIndex = chartData.findIndex(d => d.uniqueKey === payload.value);
-    const labelData = chartItemIndex >= 0 ? xAxisLabelsData[chartItemIndex] : null;
+  // Cria estrutura de dados para os labels do eixo X (vento)
+  const windXAxisLabelsData = windChartData.map((item) => {
+    if (item.isNewDay && item.dayStart) {
+      return {
+        time: item.timeOnly,
+        date: item.dayStart,
+        hasDate: true
+      };
+    }
+    return {
+      time: item.timeOnly,
+      hasDate: false
+    };
+  });
+
+  // Verifica se há dados de múltiplos dias (temperatura)
+  const hasMultipleDaysTemp = (() => {
+    if (temperatureChartData.length === 0) return false;
+    const firstDay = new Date(temperatureChartData[0].timestamp).toDateString();
+    const lastDay = new Date(temperatureChartData[temperatureChartData.length - 1].timestamp).toDateString();
+    return firstDay !== lastDay;
+  })();
+
+  // Verifica se há dados de múltiplos dias (vento)
+  const hasMultipleDaysWind = (() => {
+    if (windChartData.length === 0) return false;
+    const firstDay = new Date(windChartData[0].timestamp).toDateString();
+    const lastDay = new Date(windChartData[windChartData.length - 1].timestamp).toDateString();
+    return firstDay !== lastDay;
+  })();
+
+  // Componente customizado para renderizar ticks do eixo X com data abaixo do horário (temperatura)
+  const TemperatureCustomTick = ({ x, y, payload }: any) => {
+    const chartItemIndex = temperatureChartData.findIndex(d => d.uniqueKey === payload.value);
+    const labelData = chartItemIndex >= 0 ? temperatureXAxisLabelsData[chartItemIndex] : null;
     
-    // Posição Y base - o Recharts posiciona y na linha base do eixo X
-    // Ajustamos para garantir que os labels fiquem completamente abaixo do gráfico
-    // Quando há data, precisamos de mais espaço (duas linhas)
-    const baseY = labelData?.hasDate ? y + 5 : y + 3;
+    // Detecta tamanho da tela para ajustar fontes usando o estado
+    const isMobile = windowWidth <= 640;
+    const isTablet = windowWidth > 640 && windowWidth <= 1024;
+    
+    // Ajusta tamanhos de fonte e espaçamento baseado no tamanho da tela
+    const timeFontSize = isMobile ? 9 : isTablet ? 10 : 11;
+    const dateFontSize = isMobile ? 10 : isTablet ? 12 : 13;
+    const baseY = labelData?.hasDate ? (isMobile ? y + 10 : y + 12) : (isMobile ? y + 8 : y + 10);
+    const dateOffset = isMobile ? 14 : 18;
     
     if (!labelData) {
-      const item = chartData.find(d => d.uniqueKey === payload.value);
-      return <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>{item?.timeOnly || payload.value}</text>;
+      const item = temperatureChartData.find(d => d.uniqueKey === payload.value);
+      return (
+        <text 
+          x={x} 
+          y={baseY} 
+          textAnchor="middle" 
+          fill="#666" 
+          fontSize={isMobile ? 9 : 12}
+        >
+          {item?.timeOnly || payload.value}
+        </text>
+      );
     }
 
     if (labelData.hasDate) {
       // Quando há data, posiciona horário na primeira linha e data na segunda linha abaixo
+      // A data é destacada com negrito, cor mais escura e tamanho maior para ser mais identificável
       return (
         <g>
-          <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>
+          <text 
+            x={x} 
+            y={baseY} 
+            textAnchor="middle" 
+            fill="#666" 
+            fontSize={timeFontSize}
+          >
             {labelData.time}
           </text>
-          <text x={x} y={baseY + 16} textAnchor="middle" fill="#888" fontSize={10}>
+          <text 
+            x={x} 
+            y={baseY + dateOffset} 
+            textAnchor="middle" 
+            fill="#1a1a1a" 
+            fontSize={dateFontSize} 
+            style={{ fontWeight: 'bold', fontFamily: 'inherit' }}
+          >
             {labelData.date}
           </text>
         </g>
@@ -461,46 +908,90 @@ const Dashboard = () => {
     }
 
     return (
-      <text x={x} y={baseY} textAnchor="middle" fill="#666" fontSize={12}>
+      <text 
+        x={x} 
+        y={baseY} 
+        textAnchor="middle" 
+        fill="#666" 
+        fontSize={isMobile ? 9 : 12}
+      >
         {labelData.time}
       </text>
     );
   };
 
-  // Identifica os pontos onde há mudança de dia para criar linhas divisórias
-  // CRÍTICO: Usa o timestamp completo como identificador único para evitar conflitos
-  // quando múltiplos pontos têm o mesmo horário em dias diferentes
-  const dayDividers = chartData
-    .map((item, index) => ({
-      ...item,
-      index
-    }))
-    .filter(item => item.isNewDay)
-    .map(item => ({
-      // Usa uniqueKey que combina timestamp e índice para garantir unicidade
-      // Isso evita que linhas apareçam em múltiplos pontos com mesmo horário
-      x: item.uniqueKey, // Usa chave única em vez de apenas horário
-      label: item.dayStart,
-      chartIndex: item.chartIndex
-    }));
+  // Componente customizado para renderizar ticks do eixo X com data abaixo do horário (vento)
+  const WindCustomTick = ({ x, y, payload }: any) => {
+    const chartItemIndex = windChartData.findIndex(d => d.uniqueKey === payload.value);
+    const labelData = chartItemIndex >= 0 ? windXAxisLabelsData[chartItemIndex] : null;
+    
+    // Detecta tamanho da tela para ajustar fontes usando o estado
+    const isMobile = windowWidth <= 640;
+    const isTablet = windowWidth > 640 && windowWidth <= 1024;
+    
+    // Ajusta tamanhos de fonte e espaçamento baseado no tamanho da tela
+    const timeFontSize = isMobile ? 9 : isTablet ? 10 : 11;
+    const dateFontSize = isMobile ? 10 : isTablet ? 12 : 13;
+    const baseY = labelData?.hasDate ? (isMobile ? y + 10 : y + 12) : (isMobile ? y + 8 : y + 10);
+    const dateOffset = isMobile ? 14 : 18;
+    
+    if (!labelData) {
+      const item = windChartData.find(d => d.uniqueKey === payload.value);
+      return (
+        <text 
+          x={x} 
+          y={baseY} 
+          textAnchor="middle" 
+          fill="#666" 
+          fontSize={isMobile ? 9 : 12}
+        >
+          {item?.timeOnly || payload.value}
+        </text>
+      );
+    }
 
-  // Para gráficos de barra, posiciona as linhas ANTES do primeiro ponto do novo dia
-  const dayDividersForBarChart = chartData
-    .map((item, index) => ({
-      ...item,
-      index
-    }))
-    .filter(item => item.isNewDay && item.index > 0)
-    .map(item => {
-      // Para gráfico de barras, usa a chave única do último ponto do dia anterior
-      // para que a linha apareça ANTES da primeira barra do novo dia
-      const prevItem = chartData[item.index - 1];
-      return {
-        x: prevItem.uniqueKey, // Usa chave única para evitar conflitos
-        label: item.dayStart,
-        chartIndex: item.chartIndex
-      };
-    });
+    if (labelData.hasDate) {
+      return (
+        <g>
+          <text 
+            x={x} 
+            y={baseY} 
+            textAnchor="middle" 
+            fill="#666" 
+            fontSize={timeFontSize}
+          >
+            {labelData.time}
+          </text>
+          <text 
+            x={x} 
+            y={baseY + dateOffset} 
+            textAnchor="middle" 
+            fill="#1a1a1a" 
+            fontSize={dateFontSize} 
+            style={{ fontWeight: 'bold', fontFamily: 'inherit' }}
+          >
+            {labelData.date}
+          </text>
+        </g>
+      );
+    }
+
+    return (
+      <text 
+        x={x} 
+        y={baseY} 
+        textAnchor="middle" 
+        fill="#666" 
+        fontSize={isMobile ? 9 : 12}
+      >
+        {labelData.time}
+      </text>
+    );
+  };
+
+
+
+
 
   if (loading) {
     return (
@@ -514,14 +1005,14 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Painel Meteorológico</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Painel Meteorológico</h1>
           {userLocation && (
-            <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-              <MapPin className="h-4 w-4" />
-              <span>
+            <div className="flex items-center gap-2 mt-2 text-xs sm:text-sm text-gray-600">
+              <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="break-words">
                 {locationInfo ? (
                   <>
                     {locationInfo.city}
@@ -543,34 +1034,48 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleExportCSV} variant="outline" disabled={weatherData.length === 0}>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={handleExportCSV} 
+            variant="outline" 
+            disabled={weatherData.length === 0}
+            className="w-full sm:w-auto"
+            size="sm"
+          >
             <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
+            <span className="hidden xs:inline">Exportar CSV</span>
+            <span className="xs:hidden">CSV</span>
           </Button>
-          <Button onClick={handleExportXLSX} variant="outline" disabled={weatherData.length === 0}>
+          <Button 
+            onClick={handleExportXLSX} 
+            variant="outline" 
+            disabled={weatherData.length === 0}
+            className="w-full sm:w-auto"
+            size="sm"
+          >
             <Download className="h-4 w-4 mr-2" />
-            Exportar XLSX
+            <span className="hidden xs:inline">Exportar XLSX</span>
+            <span className="xs:hidden">XLSX</span>
           </Button>
         </div>
       </div>
 
       {locationError && (
         <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <p className="text-yellow-800 text-sm">{locationError}</p>
+          <CardContent className="pt-4 sm:pt-6">
+            <p className="text-yellow-800 text-xs sm:text-sm">{locationError}</p>
           </CardContent>
         </Card>
       )}
 
       {error && (
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-red-800">{error}</p>
+          <CardContent className="pt-4 sm:pt-6">
+            <p className="text-red-800 text-xs sm:text-sm">{error}</p>
             <Button 
               onClick={fetchData} 
               variant="outline" 
-              className="mt-4"
+              className="mt-3 sm:mt-4 w-full sm:w-auto"
               size="sm"
             >
               Tentar Novamente
@@ -581,8 +1086,8 @@ const Dashboard = () => {
 
       {!latest && !loading && !error && (
         <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <p className="text-yellow-800">
+          <CardContent className="pt-4 sm:pt-6">
+            <p className="text-yellow-800 text-xs sm:text-sm">
               Nenhum dado meteorológico encontrado. Aguarde alguns minutos enquanto os dados são coletados.
             </p>
           </CardContent>
@@ -591,12 +1096,12 @@ const Dashboard = () => {
 
       {weatherData.length > 0 && (
         <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-6">
-            <p className="text-blue-800 text-sm">
+          <CardContent className="pt-4 sm:pt-6">
+            <p className="text-blue-800 text-xs sm:text-sm">
               <strong>ℹ️ Informação:</strong> Exibindo <strong>{weatherData.length}</strong> registro(s) meteorológico(s) coletado(s).
               {weatherData.length > 0 && (
-                <span>
-                  {' '}Período: {new Date(weatherData[0].timestamp).toLocaleString('pt-BR')} até {new Date(weatherData[weatherData.length - 1].timestamp).toLocaleString('pt-BR')}
+                <span className="block sm:inline">
+                  {' '}Período: {formatFullDateTime(weatherData[0].timestamp, userTimeZone)} até {formatFullDateTime(weatherData[weatherData.length - 1].timestamp, userTimeZone)}
                 </span>
               )}
               <br />
@@ -609,7 +1114,7 @@ const Dashboard = () => {
       )}
 
       {latest && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Temperatura</CardTitle>
@@ -659,15 +1164,15 @@ const Dashboard = () => {
       {insights && (
         <Card>
           <CardHeader>
-            <CardTitle>Análise e previsões</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Análise e previsões</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-2">
+          <CardContent className="space-y-3 sm:space-y-4 pt-2">
             <div>
               <div className="space-y-1">
                 {formatSummary(insights.summary)}
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Índice de Conforto</p>
                 <p className="text-2xl font-bold">{insights.comfort.index}</p>
@@ -692,10 +1197,10 @@ const Dashboard = () => {
             </div>
             {insights.alerts.length > 0 && (
               <div>
-                <h3 className="font-semibold mb-2">Alertas</h3>
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Alertas</h3>
                 <ul className="list-disc list-inside space-y-1">
                   {insights.alerts.map((alert, index) => (
-                    <li key={index} className="text-sm text-orange-600">{alert}</li>
+                    <li key={index} className="text-xs sm:text-sm text-orange-600">{alert}</li>
                   ))}
                 </ul>
               </div>
@@ -704,25 +1209,73 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {chartData.length > 0 && (
+      {temperatureChartData.length > 0 && (
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Tendências de Temperatura e Umidade</CardTitle>
-              <CardDescription>{chartData.length} pontos de dados históricos</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Tendências de Temperatura e Umidade</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">{temperatureChartData.length} pontos de dados históricos</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Intervalo:</span>
+                  <div className="flex flex-wrap gap-1 border rounded-md p-1 w-full sm:w-auto">
+                    <Button
+                      variant={temperatureFilter === '1h' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTemperatureFilter('1h')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      1h
+                    </Button>
+                    <Button
+                      variant={temperatureFilter === '30min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTemperatureFilter('30min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      30min
+                    </Button>
+                    <Button
+                      variant={temperatureFilter === '5min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTemperatureFilter('5min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      5min
+                    </Button>
+                    <Button
+                      variant={temperatureFilter === '1min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTemperatureFilter('1min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      1min
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ bottom: hasMultipleDays ? 100 : 50, top: 10, right: 10, left: 10 }}>
+            <CardContent className="chart-container">
+              <ResponsiveContainer width="100%" height={getChartHeight()}>
+                <LineChart 
+                  data={temperatureChartData} 
+                  margin={getChartMargins(hasMultipleDaysTemp)}
+                  key={`temp-${temperatureFilter}`}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="uniqueKey"
                     type="category"
-                    height={hasMultipleDays ? 90 : 45}
-                    interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
-                    tick={<CustomTick />}
+                    height={hasMultipleDaysTemp ? (windowWidth <= 640 ? 70 : 90) : (windowWidth <= 640 ? 35 : 45)}
+                    interval={calculateXAxisInterval(temperatureChartData.length)}
+                    tick={<TemperatureCustomTick />}
+                    angle={windowWidth <= 640 ? -45 : 0}
+                    textAnchor={windowWidth <= 640 ? "end" : "middle"}
+                    tickMargin={windowWidth <= 640 ? 8 : 5}
                   />
-                  <YAxis />
+                  <YAxis width={getYAxisWidth()} />
                   <Tooltip 
                     labelFormatter={(value: any, payload: any[]) => {
                       if (payload && payload.length > 0 && payload[0].payload) {
@@ -730,19 +1283,42 @@ const Dashboard = () => {
                       }
                       return value;
                     }}
+                    contentStyle={{
+                      fontSize: windowWidth <= 640 ? '11px' : '13px',
+                      padding: windowWidth <= 640 ? '6px' : '8px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px'
+                    }}
                   />
-                  <Legend />
-                  {dayDividers.map((divider, index) => (
-                    <ReferenceLine 
-                      key={`divider-${index}`}
-                      x={divider.x} 
-                      stroke="#999" 
-                      strokeWidth={2.5}
-                      strokeDasharray="0"
-                    />
-                  ))}
-                  <Line type="monotone" dataKey="temperature" stroke="#8884d8" name="Temperatura (°C)" />
-                  <Line type="monotone" dataKey="humidity" stroke="#82ca9d" name="Umidade (%)" />
+                  <Legend 
+                    wrapperStyle={{
+                      fontSize: windowWidth <= 640 ? '10px' : '12px',
+                      paddingTop: windowWidth <= 640 ? '8px' : '10px'
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="temperature" 
+                    stroke="#8884d8" 
+                    name="Temperatura (°C)"
+                    isAnimationActive={true}
+                    animationDuration={600}
+                    animationEasing="ease-in-out"
+                    dot={{ r: windowWidth <= 640 ? 3 : 4 }}
+                    activeDot={{ r: windowWidth <= 640 ? 5 : 6 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="humidity" 
+                    stroke="#82ca9d" 
+                    name="Umidade (%)"
+                    isAnimationActive={true}
+                    animationDuration={600}
+                    animationEasing="ease-in-out"
+                    dot={{ r: windowWidth <= 640 ? 3 : 4 }}
+                    activeDot={{ r: windowWidth <= 640 ? 5 : 6 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -750,21 +1326,69 @@ const Dashboard = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Velocidade do Vento</CardTitle>
-              <CardDescription>{chartData.length} pontos de dados históricos</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Velocidade do Vento</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">{windChartData.length} pontos de dados históricos</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <span className="text-xs sm:text-sm text-muted-foreground">Intervalo:</span>
+                  <div className="flex flex-wrap gap-1 border rounded-md p-1 w-full sm:w-auto">
+                    <Button
+                      variant={windFilter === '1h' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWindFilter('1h')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      1h
+                    </Button>
+                    <Button
+                      variant={windFilter === '30min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWindFilter('30min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      30min
+                    </Button>
+                    <Button
+                      variant={windFilter === '5min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWindFilter('5min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      5min
+                    </Button>
+                    <Button
+                      variant={windFilter === '1min' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWindFilter('1min')}
+                      className="h-7 px-2 text-xs flex-1 sm:flex-none"
+                    >
+                      1min
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} margin={{ bottom: hasMultipleDays ? 100 : 50, top: 10, right: 10, left: 10 }}>
+            <CardContent className="chart-container">
+              <ResponsiveContainer width="100%" height={getChartHeight()}>
+                <BarChart 
+                  data={windChartData} 
+                  margin={getChartMargins(hasMultipleDaysWind)}
+                  key={`wind-${windFilter}`}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="uniqueKey"
                     type="category"
-                    height={hasMultipleDays ? 90 : 45}
-                    interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
-                    tick={<CustomTick />}
+                    height={hasMultipleDaysWind ? (windowWidth <= 640 ? 70 : 90) : (windowWidth <= 640 ? 35 : 45)}
+                    interval={calculateXAxisInterval(windChartData.length)}
+                    tick={<WindCustomTick />}
+                    angle={windowWidth <= 640 ? -45 : 0}
+                    textAnchor={windowWidth <= 640 ? "end" : "middle"}
+                    tickMargin={windowWidth <= 640 ? 8 : 5}
                   />
-                  <YAxis />
+                  <YAxis width={getYAxisWidth()} />
                   <Tooltip 
                     labelFormatter={(value: any, payload: any[]) => {
                       if (payload && payload.length > 0 && payload[0].payload) {
@@ -772,18 +1396,28 @@ const Dashboard = () => {
                       }
                       return value;
                     }}
+                    contentStyle={{
+                      fontSize: windowWidth <= 640 ? '11px' : '13px',
+                      padding: windowWidth <= 640 ? '6px' : '8px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #ccc',
+                      borderRadius: '4px'
+                    }}
                   />
-                  <Legend />
-                  {dayDividersForBarChart.map((divider, index) => (
-                    <ReferenceLine 
-                      key={`divider-bar-${index}`}
-                      x={divider.x} 
-                      stroke="#999" 
-                      strokeWidth={2.5}
-                      strokeDasharray="0"
-                    />
-                  ))}
-                  <Bar dataKey="windSpeed" fill="#8884d8" name="Velocidade do Vento (km/h)" />
+                  <Legend 
+                    wrapperStyle={{
+                      fontSize: windowWidth <= 640 ? '10px' : '12px',
+                      paddingTop: windowWidth <= 640 ? '8px' : '10px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="windSpeed" 
+                    fill="#8884d8" 
+                    name="Velocidade do Vento (km/h)"
+                    isAnimationActive={true}
+                    animationDuration={600}
+                    animationEasing="ease-in-out"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
