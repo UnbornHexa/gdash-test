@@ -8,10 +8,17 @@ O projeto está configurado para deploy no Railway. Siga estes passos:
 
 1. **Criar um novo projeto** no Railway
 2. **Adicionar um serviço** e conectar ao repositório Git
-3. **⚠️ IMPORTANTE: Configurar o Root Directory**:
+3. **Root Directory** (escolha uma opção):
+
+   **Opção A: Deixar Root Directory como raiz (recomendado)**
+   - Deixe o Root Directory vazio ou como `.` (raiz)
+   - Os arquivos `railway.json` e `Procfile` já estão configurados com `cd backend &&` para funcionar da raiz
+   - Funciona automaticamente sem configuração adicional
+
+   **Opção B: Configurar Root Directory como `backend`**
    - Vá em **Settings** → **Root Directory**
    - Defina como: `backend`
-   - Isso faz com que o Railway olhe dentro do diretório `backend/` para encontrar o `package.json`
+   - O arquivo `backend/nixpacks.toml` será usado automaticamente
 
 ### 2. Variáveis de Ambiente Necessárias
 
@@ -55,17 +62,15 @@ O Railway detectará automaticamente:
 
 ### 5. Comandos de Build e Start
 
-Com o **Root Directory = `backend`**, o Railway executará:
+**Se Root Directory = raiz (padrão):**
+- Build: `cd backend && npm install && npm run build` (via `railway.json`)
+- Start: `cd backend && npm run start:prod` (via `Procfile` ou `railway.json`)
+- Arquivos usados: `railway.json`, `Procfile` na raiz
 
-**Detecção Automática (Nixpacks):**
-- Detecta `package.json` no diretório `backend/`
-- Instala dependências: `npm ci`
-- Faz build: `npm run build`
-- Inicia: `node dist/main.js`
-
-**Arquivos de Configuração:**
-- `backend/nixpacks.toml` - Configuração do Nixpacks (se necessário)
-- `backend/package.json` - Scripts de build e start
+**Se Root Directory = `backend`:**
+- Build: `npm install && npm run build` (via `backend/nixpacks.toml`)
+- Start: `npm run start:prod` (via `backend/nixpacks.toml`)
+- Arquivos usados: `backend/nixpacks.toml`, `backend/package.json`
 
 ### 6. Verificação
 
