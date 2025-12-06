@@ -25,9 +25,12 @@ O projeto está configurado para deploy no Railway. Siga estes passos:
 Configure as seguintes variáveis de ambiente no Railway:
 
 #### Obrigatórias:
-- `MONGODB_URI` - String de conexão do MongoDB (ex: `mongodb+srv://user:pass@cluster.mongodb.net/weather_db`)
+- `MONGODB_URI` ou `MONGO_URI` - **CRÍTICO**: String de conexão do MongoDB. 
+  - Se usar MongoDB do Railway: O Railway cria automaticamente `MONGO_URI` quando você adiciona MongoDB
+  - Se usar MongoDB Atlas: Use `mongodb+srv://user:pass@cluster.mongodb.net/weather_db`
+  - Se usar MongoDB externo: Use `mongodb://user:pass@host:port/database`
 - `JWT_SECRET` - Chave secreta para JWT (gere uma chave forte)
-- `PORT` - Porta da aplicação (Railway define automaticamente, mas você pode configurar)
+- `PORT` - Porta da aplicação (Railway define automaticamente via variável `PORT`)
 - `NODE_ENV` - `production`
 
 #### Opcionais mas Recomendadas:
@@ -37,21 +40,37 @@ Configure as seguintes variáveis de ambiente no Railway:
 - `MONGO_ROOT_USERNAME` - Username do MongoDB (se não estiver na URI)
 - `MONGO_ROOT_PASSWORD` - Senha do MongoDB (se não estiver na URI)
 
-### 3. Banco de Dados MongoDB
+### 3. Banco de Dados MongoDB ⚠️ CRÍTICO
 
-O Railway oferece MongoDB como serviço gerenciado:
+**O erro `getaddrinfo ENOTFOUND mongodb` significa que a variável `MONGODB_URI` não está configurada!**
+
+#### Opção 1: MongoDB do Railway (Recomendado)
 
 1. No projeto Railway, clique em **"New"** → **"Database"** → **"Add MongoDB"**
-2. O Railway criará automaticamente uma variável `MONGO_URI` ou `MONGODB_URI`
-3. Use essa variável no serviço da API
+2. O Railway criará automaticamente uma variável `MONGO_URI` (ou `MONGODB_URI`)
+3. **IMPORTANTE**: Você precisa referenciar essa variável no seu serviço de API:
+   - Vá no serviço da API
+   - Vá em **Variables**
+   - Adicione ou verifique: `MONGODB_URI` = valor de `MONGO_URI` do MongoDB
+   - OU renomeie a variável para `MONGODB_URI` no serviço MongoDB
 
-**OU**
+#### Opção 2: MongoDB Atlas (Cloud - Gratuito)
 
-Use MongoDB Atlas (cloud):
 1. Crie uma conta em [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Crie um cluster gratuito
-3. Obtenha a connection string
-4. Configure como `MONGODB_URI` no Railway
+2. Crie um cluster gratuito (M0)
+3. Configure Network Access: Adicione `0.0.0.0/0` (permite todas as IPs) ou IPs do Railway
+4. Configure Database Access: Crie um usuário com senha
+5. Obtenha a connection string:
+   - Clique em "Connect" → "Connect your application"
+   - Copie a string: `mongodb+srv://user:pass@cluster.mongodb.net/`
+   - Adicione o nome do banco: `mongodb+srv://user:pass@cluster.mongodb.net/weather_db`
+6. No Railway, adicione como variável `MONGODB_URI`
+
+#### Verificação
+
+Após configurar, verifique nos logs que aparece:
+- `MONGODB_URI: definida` (não "não definida")
+- Não deve aparecer o erro `getaddrinfo ENOTFOUND mongodb`
 
 ### 4. Deploy
 
@@ -96,7 +115,11 @@ Após o deploy, verifique:
 **Erro: "Cannot find module '/app/dist/main.js'"**
 - ✅ Resolvido: Mudado para `npm install` (instala devDependencies como @nestjs/cli)
 - ✅ Resolvido: Start command usa `npm run start:prod` (executa prestart:prod que faz build automaticamente)
-- Ver arquivo `RAILWAY_FIX_CRASH.md` para detalhes completos
+
+**Erro: `getaddrinfo ENOTFOUND mongodb` ou `Unable to connect to the database`** ⚠️
+- **Causa**: A variável `MONGODB_URI` não está configurada no Railway
+- **Solução**: Veja seção 3 acima ou arquivo `RAILWAY_MONGODB_SETUP.md` para guia detalhado
+- **Verificação rápida**: Nos logs, deve aparecer `MONGODB_URI: definida` (não "não definida")
 
 **Erro de conexão com MongoDB:**
 - Verifique se `MONGODB_URI` está configurada corretamente

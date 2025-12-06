@@ -13,17 +13,16 @@ import { HealthController } from './health/health.controller';
       isGlobal: true,
     }),
     MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://admin:admin123@mongodb:27017/weather_db?authSource=admin',
+      process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://admin:admin123@mongodb:27017/weather_db?authSource=admin',
       {
-        serverSelectionTimeoutMS: 2000, // 2 segundos apenas
+        serverSelectionTimeoutMS: 5000, // 5 segundos para Railway
         socketTimeoutMS: 20000,
-        connectTimeoutMS: 3000, // 3 segundos
-        maxPoolSize: 3,
-        retryWrites: false, // Desabilita retry para não travar
-        retryReads: false,
+        connectTimeoutMS: 5000, // 5 segundos para Railway
+        maxPoolSize: 10,
+        retryWrites: true, // Habilita retry para produção
+        retryReads: true,
         bufferCommands: true,
         autoIndex: false,
-        // Não espera conexão para iniciar
         directConnection: false,
       }
     ),
