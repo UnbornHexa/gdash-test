@@ -155,6 +155,13 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('with-locations')
+  async findAllWithLocations() {
+    // Endpoint público para o coletor Python buscar usuários com localizações
+    // Não requer autenticação para facilitar integração
+    return this.usersService.findAllWithLocations();
+  }
+
   @Get('profile/me')
   @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req: any) {

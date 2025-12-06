@@ -22,7 +22,7 @@ export class WeatherService {
   }
 
   async findAll(query: QueryWeatherLogsDto) {
-    const { page = 1, limit = 10, startDate, endDate } = query;
+    const { page = 1, limit = 10, startDate, endDate, latitude, longitude } = query;
     const skip = (page - 1) * limit;
 
     const filter: any = {};
@@ -34,6 +34,18 @@ export class WeatherService {
       if (endDate) {
         filter.timestamp.$lte = new Date(endDate);
       }
+    }
+
+    // Filtra por localização se fornecida (tolerância de 0.01 graus ~1km)
+    if (latitude !== undefined && longitude !== undefined) {
+      filter['location.latitude'] = {
+        $gte: latitude - 0.01,
+        $lte: latitude + 0.01,
+      };
+      filter['location.longitude'] = {
+        $gte: longitude - 0.01,
+        $lte: longitude + 0.01,
+      };
     }
 
     const [data, total] = await Promise.all([
@@ -65,9 +77,23 @@ export class WeatherService {
     return this.weatherLogModel.findOne().sort({ timestamp: -1 }).exec();
   }
 
-  async generateInsights(limit: number = 50, currentWeather?: any) {
+  async generateInsights(limit: number = 50, currentWeather?: any, latitude?: number, longitude?: number) {
+    // Se latitude e longitude foram fornecidos, filtra logs pela localização
+    // Usa uma tolerância de 0.01 graus (aproximadamente 1km) para considerar logs da mesma localização
+    const filter: any = {};
+    if (latitude !== undefined && longitude !== undefined) {
+      filter['location.latitude'] = {
+        $gte: latitude - 0.01,
+        $lte: latitude + 0.01,
+      };
+      filter['location.longitude'] = {
+        $gte: longitude - 0.01,
+        $lte: longitude + 0.01,
+      };
+    }
+
     const recentLogs = await this.weatherLogModel
-      .find()
+      .find(filter)
       .sort({ timestamp: -1 })
       .limit(limit)
       .exec();
@@ -188,7 +214,7 @@ export class WeatherService {
     await this.weatherLogModel.findByIdAndDelete(id).exec();
   }
 
-  async fetchCurrentWeather(latitude: number, longitude: number) {
+  async fetchCurrentWeather(latitude: number, longitude: number, saveToDatabase: boolean = false) {
     try {
       const weatherApiUrl = 'https://api.open-meteo.com/v1/forecast';
       
@@ -250,7 +276,7 @@ export class WeatherService {
       const current = data.current || {};
       const weatherCode = current.weather_code || 0;
 
-      return {
+      const weatherData = {
         timestamp: new Date().toISOString(),
         location: {
           latitude,
@@ -275,6 +301,39 @@ export class WeatherService {
             }
           : undefined,
       };
+
+      // Se saveToDatabase for true, salva no banco (evitando duplicados recentes)
+      if (saveToDatabase) {
+        try {
+          // Verifica se já existe um log recente (últimos 30 segundos) para esta localização
+          // para evitar salvar múltiplos registros muito próximos no tempo
+          const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString();
+          const existingLog = await this.weatherLogModel
+            .findOne({
+              'location.latitude': {
+                $gte: latitude - 0.001,
+                $lte: latitude + 0.001,
+              },
+              'location.longitude': {
+                $gte: longitude - 0.001,
+                $lte: longitude + 0.001,
+              },
+              timestamp: { $gte: thirtySecondsAgo },
+            })
+            .exec();
+
+          // Se não existe log recente, salva
+          if (!existingLog) {
+            await this.create(weatherData as CreateWeatherLogDto);
+            console.log(`✅ Dados meteorológicos salvos para localização: ${latitude}, ${longitude}`);
+          }
+        } catch (saveError) {
+          // Não falha a requisição se houver erro ao salvar, apenas loga
+          console.error('Erro ao salvar dados meteorológicos no banco:', saveError);
+        }
+      }
+
+      return weatherData;
     } catch (error: any) {
       console.error('Erro ao buscar dados meteorológicos:', error);
       throw new HttpException(

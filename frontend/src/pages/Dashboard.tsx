@@ -483,7 +483,12 @@ const Dashboard = () => {
         while (hasMore) {
           try {
             const response = await api.get('/weather/logs', { 
-              params: { page, limit } 
+              params: { 
+                page, 
+                limit,
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude
+              } 
             });
             
             console.log(`📄 Página ${page}:`, {

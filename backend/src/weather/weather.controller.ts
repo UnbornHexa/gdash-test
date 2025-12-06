@@ -53,11 +53,17 @@ export class WeatherController {
     
     // Tenta buscar dados atuais se latitude e longitude forem fornecidos
     let currentWeather = null;
+    let latNum: number | undefined;
+    let lonNum: number | undefined;
+    
     if (latitude && longitude) {
+      latNum = parseFloat(latitude);
+      lonNum = parseFloat(longitude);
+      
       try {
         currentWeather = await this.weatherService.fetchCurrentWeather(
-          parseFloat(latitude),
-          parseFloat(longitude)
+          latNum,
+          lonNum
         );
       } catch (error) {
         // Se falhar, continua sem dados atuais
@@ -65,7 +71,8 @@ export class WeatherController {
       }
     }
     
-    return this.weatherService.generateInsights(limitNum, currentWeather);
+    // Passa latitude e longitude para filtrar logs pela localização do usuário
+    return this.weatherService.generateInsights(limitNum, currentWeather, latNum, lonNum);
   }
 
   @Get('export/csv')
@@ -96,7 +103,8 @@ export class WeatherController {
   @Get('current')
   @UseGuards(JwtAuthGuard)
   async getCurrentWeather(@Query() query: FetchWeatherDto) {
-    return this.weatherService.fetchCurrentWeather(query.latitude, query.longitude);
+    // Busca dados atuais sem salvar (os dados são coletados pelo serviço Python)
+    return this.weatherService.fetchCurrentWeather(query.latitude, query.longitude, false);
   }
 
   @Get('location')

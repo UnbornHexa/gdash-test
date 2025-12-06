@@ -28,6 +28,17 @@ export class UsersService {
     return this.userModel.find().select('-password').exec();
   }
 
+  async findAllWithLocations(): Promise<User[]> {
+    // Retorna apenas usuários ativos com localização definida
+    return this.userModel
+      .find({ 
+        isActive: true,
+        location: { $exists: true, $ne: null }
+      })
+      .select('email name location')
+      .exec();
+  }
+
   async findOne(id: string): Promise<User> {
     const user = await this.userModel.findById(id).select('-password').exec();
     if (!user) {
@@ -119,11 +130,18 @@ export class UsersService {
       
       console.log(`🔄 [4/4] Criando novo usuário...`);
       // Cria novo usuário com timeout
+      // Localização de Guarujá para o admin
+      const guarujaLocation = {
+        latitude: -23.9931,
+        longitude: -46.2564,
+      };
+
       const createPromise = this.userModel.create({
         email: defaultEmail,
         password: hashedPassword,
         name: 'Usuário Administrador',
         isActive: true,
+        location: guarujaLocation,
       });
       
       const timeoutPromise = new Promise((_, reject) => 
@@ -274,13 +292,25 @@ export class UsersService {
         console.log(`✅ Usuário padrão já existe: ${defaultEmail}`);
         console.log(`📋 Status: ativo=${existingUser.isActive}, email="${existingUser.email}"`);
         
+        // Localização de Guarujá para o admin
+        const guarujaLocation = {
+          latitude: -23.9931,
+          longitude: -46.2564,
+        };
+        
         // Verifica se a senha está correta
         const isPasswordValid = await bcrypt.compare(defaultPassword, existingUser.password);
         console.log(`🔑 Teste de senha: ${isPasswordValid ? 'VÁLIDA' : 'INVÁLIDA'}`);
-        const needsUpdate = !existingUser.isActive || !isPasswordValid;
+        
+        // Verifica se precisa atualizar localização
+        const needsLocationUpdate = !existingUser.location || 
+          existingUser.location.latitude !== guarujaLocation.latitude ||
+          existingUser.location.longitude !== guarujaLocation.longitude;
+        
+        const needsUpdate = !existingUser.isActive || !isPasswordValid || needsLocationUpdate;
         
         if (needsUpdate) {
-          console.log(`🔄 Atualizando usuário padrão (ativo: ${existingUser.isActive}, senha válida: ${isPasswordValid})...`);
+          console.log(`🔄 Atualizando usuário padrão (ativo: ${existingUser.isActive}, senha válida: ${isPasswordValid}, localização: ${needsLocationUpdate ? 'atualizar' : 'ok'})...`);
           
           // Atualiza senha se necessário
           if (!isPasswordValid) {
@@ -293,6 +323,8 @@ export class UsersService {
           existingUser.isActive = true;
           // Garante que o email está normalizado
           existingUser.email = defaultEmail;
+          // Garante que tem localização de Guarujá
+          existingUser.location = guarujaLocation;
           await existingUser.save();
           
           console.log(`✅ Usuário padrão atualizado com sucesso: ${defaultEmail}`);
@@ -305,11 +337,18 @@ export class UsersService {
       console.log(`🔨 Criando novo usuário padrão...`);
       const hashedPassword = await bcrypt.hash(defaultPassword, 10);
       
+      // Localização de Guarujá para o admin
+      const guarujaLocation = {
+        latitude: -23.9931,
+        longitude: -46.2564,
+      };
+
       const newUser = await this.userModel.create({
         email: defaultEmail,
         password: hashedPassword,
         name: 'Usuário Administrador',
         isActive: true,
+        location: guarujaLocation,
       });
 
       console.log(`✅ Usuário padrão criado com sucesso: ${defaultEmail} (ID: ${newUser._id})`);

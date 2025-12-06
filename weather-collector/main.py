@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Serviço de Coleta de Dados Meteorológicos
-Coleta dados meteorológicos da API Open-Meteo e envia para RabbitMQ
+Coleta dados meteorológicos da API Open-Meteo para cada usuário e envia para RabbitMQ
 """
 
 import os
@@ -17,8 +17,7 @@ load_dotenv()
 class WeatherCollector:
     def __init__(self):
         self.weather_api_url = os.getenv('WEATHER_API_URL', 'https://api.open-meteo.com/v1/forecast')
-        self.latitude = float(os.getenv('LATITUDE', '23.5505'))
-        self.longitude = float(os.getenv('LONGITUDE', '-46.6333'))
+        self.api_url = os.getenv('API_URL', 'http://api:3000/api')  # URL da API NestJS
         self.rabbitmq_url = os.getenv('RABBITMQ_URL', 'amqp://admin:admin123@localhost:5672')
         self.collection_interval = int(os.getenv('COLLECTION_INTERVAL', '60'))  # Padrão: 1 minuto (60 segundos)
         self.queue_name = 'weather_data'
@@ -147,7 +146,7 @@ class WeatherCollector:
         """Loop principal"""
         print("Serviço Coletor Meteorológico Iniciado")
         print(f"Coletando dados meteorológicos a cada {self.collection_interval} segundos")
-        print(f"Localização: {self.latitude}, {self.longitude}")
+        print(f"API URL: {self.api_url}")
         
         # Sincroniza com o início do próximo minuto na primeira execução
         if self.collection_interval == 60:
@@ -157,18 +156,45 @@ class WeatherCollector:
         
         while True:
             try:
-                # Coleta dados meteorológicos
-                weather_data = self.collect_weather_data()
+                # Busca usuários com localizações
+                users = self.get_users_with_locations()
                 
-                if weather_data:
-                    # Envia para RabbitMQ
-                    if self.send_to_rabbitmq(weather_data):
-                        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        print(f"[{current_time}] Dados coletados:")
-                        print(f"  Temperatura: {weather_data['current']['temperature']}°C")
-                        print(f"  Umidade: {weather_data['current']['humidity']}%")
-                        print(f"  Velocidade do Vento: {weather_data['current']['windSpeed']} km/h")
-                        print(f"  Condição: {weather_data['current']['condition']}")
+                if not users:
+                    print("⚠️ Nenhum usuário com localização encontrado. Aguardando...")
+                else:
+                    print(f"📋 Encontrados {len(users)} usuário(s) com localização")
+                    
+                    # Coleta dados para cada usuário
+                    for user in users:
+                        location = user.get('location')
+                        if not location:
+                            continue
+                            
+                        latitude = location.get('latitude')
+                        longitude = location.get('longitude')
+                        user_email = user.get('email', 'desconhecido')
+                        user_name = user.get('name', user_email)
+                        
+                        if latitude is None or longitude is None:
+                            print(f"⚠️ Usuário {user_name} não tem localização válida")
+                            continue
+                        
+                        print(f"🌤️ Coletando dados para {user_name} ({latitude}, {longitude})...")
+                        weather_data = self.collect_weather_data_for_location(latitude, longitude)
+                        
+                        if weather_data:
+                            # Envia para RabbitMQ
+                            if self.send_to_rabbitmq(weather_data):
+                                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                print(f"  ✅ [{current_time}] Dados coletados para {user_name}:")
+                                print(f"     Temperatura: {weather_data['current']['temperature']}°C")
+                                print(f"     Umidade: {weather_data['current']['humidity']}%")
+                                print(f"     Velocidade do Vento: {weather_data['current']['windSpeed']} km/h")
+                                print(f"     Condição: {weather_data['current']['condition']}")
+                            else:
+                                print(f"  ❌ Erro ao enviar dados para RabbitMQ (usuário: {user_name})")
+                        else:
+                            print(f"  ❌ Erro ao coletar dados (usuário: {user_name})")
                 
                 # Se o intervalo for 60 segundos, sincroniza com o próximo minuto
                 if self.collection_interval == 60:
@@ -182,6 +208,8 @@ class WeatherCollector:
                 break
             except Exception as e:
                 print(f"Erro no loop principal: {e}")
+                import traceback
+                traceback.print_exc()
                 time.sleep(60)  # Aguarda antes de tentar novamente
 
 if __name__ == '__main__':
