@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -35,12 +37,14 @@ interface PokemonDetail {
 
 const Pokemon = () => {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
+  const [allPokemons, setAllPokemons] = useState<Pokemon[]>([]); // Armazena todos os pokémons carregados
   const [selectedPokemon, setSelectedPokemon] = useState<PokemonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const limit = 20;
 
   useEffect(() => {
@@ -62,7 +66,9 @@ const Pokemon = () => {
     try {
       setLoading(true);
       const response = await api.get('/pokemon', { params: { page, limit } });
-      setPokemons(response.data.data);
+      const fetchedPokemons = response.data.data;
+      setAllPokemons(fetchedPokemons);
+      setPokemons(fetchedPokemons);
       setTotalPages(response.data.meta.totalPages);
     } catch (error) {
       console.error('Error fetching Pokémons:', error);
@@ -70,6 +76,18 @@ const Pokemon = () => {
       setLoading(false);
     }
   };
+
+  // Filtra pokémons baseado no termo de busca
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setPokemons(allPokemons);
+    } else {
+      const filtered = allPokemons.filter((pokemon) =>
+        pokemon.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setPokemons(filtered);
+    }
+  }, [searchTerm, allPokemons]);
 
   const fetchPokemonDetail = async (id: string) => {
     try {
@@ -166,64 +184,98 @@ const Pokemon = () => {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">Lista de Pokémon</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Página {page} de {totalPages}</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">Lista de Pokémon</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Página {page} de {totalPages}</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-auto sm:min-w-[250px]">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar Pokémon..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full sm:w-auto"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {pokemons.map((pokemon) => (
-                  <Card
-                    key={pokemon.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => fetchPokemonDetail(pokemon.id)}
-                  >
-                    <CardContent className="p-3 sm:p-4 text-center">
-                      {pokemon.image && (
-                        <img
-                          src={pokemon.image}
-                          alt={pokemon.name}
-                          className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-2"
-                        />
-                      )}
-                      <h3 className="font-semibold capitalize text-xs sm:text-sm">{pokemon.name}</h3>
-                      {pokemon.types && (
-                        <div className="flex flex-wrap justify-center gap-1 mt-2">
-                          {pokemon.types.map((type) => (
-                            <span
-                              key={type}
-                              className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-gray-200 rounded capitalize"
-                            >
-                              {type}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              {pokemons.length === 0 && searchTerm.trim() !== '' ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-sm sm:text-base">Nenhum Pokémon encontrado com "{searchTerm}"</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                    {pokemons.map((pokemon) => (
+                      <Card
+                        key={pokemon.id}
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => fetchPokemonDetail(pokemon.id)}
+                      >
+                        <CardContent className="p-3 sm:p-4 text-center">
+                          {pokemon.image && (
+                            <img
+                              src={pokemon.image}
+                              alt={pokemon.name}
+                              className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-2"
+                            />
+                          )}
+                          <h3 className="font-semibold capitalize text-xs sm:text-sm">{pokemon.name}</h3>
+                          {pokemon.types && (
+                            <div className="flex flex-wrap justify-center gap-1 mt-2">
+                              {pokemon.types.map((type) => (
+                                <span
+                                  key={type}
+                                  className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-gray-200 rounded capitalize"
+                                >
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4 sm:mt-6">
-                <Button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="w-full sm:w-auto"
-                  size="sm"
-                >
-                  Anterior
-                </Button>
-                <span className="text-xs sm:text-sm text-gray-500">
-                  Página {page} de {totalPages}
-                </span>
-                <Button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="w-full sm:w-auto"
-                  size="sm"
-                >
-                  Próxima
-                </Button>
-              </div>
+                  {/* Mostra paginação apenas quando não há busca ativa */}
+                  {searchTerm.trim() === '' && (
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-4 sm:mt-6">
+                      <Button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="w-full sm:w-auto"
+                        size="sm"
+                      >
+                        Anterior
+                      </Button>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        Página {page} de {totalPages}
+                      </span>
+                      <Button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="w-full sm:w-auto"
+                        size="sm"
+                      >
+                        Próxima
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mostra contador de resultados quando há busca */}
+                  {searchTerm.trim() !== '' && (
+                    <div className="mt-4 text-center">
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        {pokemons.length} Pokémon{pokemons.length !== 1 ? 's' : ''} encontrado{pokemons.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

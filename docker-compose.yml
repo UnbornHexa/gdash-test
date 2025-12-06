@@ -5,11 +5,11 @@ services:
     container_name: weather-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: weather_db
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin123}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-weather_db}
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -21,11 +21,11 @@ services:
     container_name: weather-rabbitmq
     restart: unless-stopped
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -39,16 +39,17 @@ services:
     container_name: weather-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${API_PORT:-3000}:3000"
     environment:
-      NODE_ENV: development
-      PORT: 3000
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/weather_db?authSource=admin
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${API_PORT:-3000}
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-admin123}@mongodb:27017/${MONGO_DATABASE:-weather_db}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production-please-use-a-strong-random-key}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672
       DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-admin@example.com}
       DEFAULT_USER_PASSWORD: ${DEFAULT_USER_PASSWORD:-123456}
       COUNTRY_STATE_CITY_API_KEY: ${COUNTRY_STATE_CITY_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
     depends_on:
       - mongodb
       - rabbitmq
@@ -66,9 +67,9 @@ services:
     container_name: weather-collector
     restart: unless-stopped
     environment:
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
-      WEATHER_API_URL: https://api.open-meteo.com/v1/forecast
-      API_URL: http://api:3000/api
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672
+      WEATHER_API_URL: ${WEATHER_API_URL:-https://api.open-meteo.com/v1/forecast}
+      API_URL: http://api:${API_PORT:-3000}/api
       COLLECTION_INTERVAL: ${COLLECTION_INTERVAL:-60}
     depends_on:
       - rabbitmq
@@ -86,8 +87,8 @@ services:
     container_name: weather-go-worker
     restart: unless-stopped
     environment:
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
-      API_URL: http://api:3000/api/weather/logs
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672
+      API_URL: http://api:${API_PORT:-3000}/api/weather/logs
     depends_on:
       - rabbitmq
       - api
@@ -102,9 +103,9 @@ services:
     container_name: weather-frontend
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     environment:
-      VITE_API_URL: http://localhost:3000/api
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api}
     depends_on:
       - api
     networks:

@@ -27,10 +27,20 @@ git clone <repository-url>
 cd "Renan Orozco"
 ```
 
-2. Copie as variáveis de ambiente (opcional - padrões estão configurados):
+2. Configure as variáveis de ambiente (opcional - valores padrão funcionam para desenvolvimento):
 ```bash
-# O arquivo .env é opcional, os padrões estão configurados no docker-compose.yml
+# Copie o arquivo de exemplo
+cp .env.example .env
+
+# Edite o arquivo .env se quiser alterar as configurações padrão
+# As variáveis mais importantes para alterar em produção são:
+# - JWT_SECRET: Use uma chave forte e aleatória
+# - MONGO_ROOT_PASSWORD: Senha do MongoDB
+# - RABBITMQ_PASS: Senha do RabbitMQ
+# - DEFAULT_USER_PASSWORD: Senha do usuário padrão
 ```
+
+**⚠️ IMPORTANTE**: O arquivo `.env` já contém valores padrão que funcionam para desenvolvimento. Para produção, **altere todas as senhas e o JWT_SECRET**!
 
 3. Inicie todos os serviços:
 ```bash
@@ -40,10 +50,10 @@ docker-compose up -d
 4. Aguarde todos os serviços ficarem prontos (pode levar alguns minutos na primeira execução)
 
 5. Acesse a aplicação:
-- **Frontend**: http://localhost:5173
-- **API**: http://localhost:3000/api
-- **Gerenciamento RabbitMQ**: http://localhost:15672 (admin/admin123)
-- **MongoDB**: localhost:27017
+- **Frontend**: http://localhost:5173 (ou porta configurada em `FRONTEND_PORT`)
+- **API**: http://localhost:3000/api (ou porta configurada em `API_PORT`)
+- **Gerenciamento RabbitMQ**: http://localhost:15672 (usuário/senha configurados em `RABBITMQ_USER`/`RABBITMQ_PASS`)
+- **MongoDB**: localhost:27017 (ou porta configurada em `MONGO_PORT`)
 
 ### Credenciais Padrão
 
@@ -277,34 +287,73 @@ python main.py
 
 ## 📝 Variáveis de Ambiente
 
-Crie um arquivo `.env` no diretório raiz (opcional):
+O projeto já inclui um arquivo `.env` com valores padrão que funcionam para desenvolvimento. Todas as variáveis sensíveis foram movidas para este arquivo.
 
-```env
-# Segredo JWT
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
+### Arquivo .env
 
+O arquivo `.env` contém todas as configurações necessárias:
+
+- **MongoDB**: Credenciais e configurações do banco de dados
+- **RabbitMQ**: Credenciais e portas do message broker
+- **API NestJS**: JWT Secret, porta, usuário padrão
+- **Weather Collector**: URL da API e intervalo de coleta
+- **Frontend**: Porta e URL da API
+
+### Valores Padrão (Desenvolvimento)
+
+O arquivo `.env` já está configurado com valores padrão que permitem executar o sistema imediatamente:
+
+```bash
 # MongoDB
-MONGODB_URI=mongodb://admin:admin123@localhost:27017/weather_db?authSource=admin
+MONGO_ROOT_USERNAME=admin
+MONGO_ROOT_PASSWORD=admin123
+MONGO_DATABASE=weather_db
+MONGO_PORT=27017
 
 # RabbitMQ
-RABBITMQ_URL=amqp://admin:admin123@localhost:5672
-
-# API Meteorológica
-WEATHER_API_URL=https://api.open-meteo.com/v1/forecast
-LATITUDE=23.5505
-LONGITUDE=-46.6333
-COLLECTION_INTERVAL=300
+RABBITMQ_USER=admin
+RABBITMQ_PASS=admin123
+RABBITMQ_PORT=5672
+RABBITMQ_MANAGEMENT_PORT=15672
 
 # API NestJS
-PORT=3000
-NODE_ENV=development
-
-# Frontend
-VITE_API_URL=http://localhost:3000/api
-
-# Usuário Padrão
+JWT_SECRET=your-super-secret-jwt-key-change-in-production-please-use-a-strong-random-key
+API_PORT=3000
 DEFAULT_USER_EMAIL=admin@example.com
 DEFAULT_USER_PASSWORD=123456
+
+# Weather Collector
+WEATHER_API_URL=https://api.open-meteo.com/v1/forecast
+COLLECTION_INTERVAL=60
+
+# Frontend
+FRONTEND_PORT=5173
+VITE_API_URL=http://localhost:3000/api
+
+# CORS (API NestJS)
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+### ⚠️ IMPORTANTE para Produção
+
+**Antes de usar em produção, altere obrigatoriamente:**
+
+1. `JWT_SECRET`: Gere uma chave forte e aleatória (mínimo 32 caracteres)
+2. `MONGO_ROOT_PASSWORD`: Use uma senha forte
+3. `RABBITMQ_PASS`: Use uma senha forte
+4. `DEFAULT_USER_PASSWORD`: Altere a senha do usuário padrão
+
+### Personalizando Configurações
+
+Se quiser alterar as configurações, edite o arquivo `.env` na raiz do projeto. O `docker-compose.yml` lê automaticamente essas variáveis.
+
+**Exemplo de geração de JWT_SECRET seguro:**
+```bash
+# Linux/Mac
+openssl rand -base64 32
+
+# Windows PowerShell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
 ## 🧪 Testes
