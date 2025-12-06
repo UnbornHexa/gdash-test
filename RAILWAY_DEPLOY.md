@@ -8,13 +8,10 @@ O projeto está configurado para deploy no Railway. Siga estes passos:
 
 1. **Criar um novo projeto** no Railway
 2. **Adicionar um serviço** e conectar ao repositório Git
-3. **Configurar o Root Directory**:
-   - Vá em Settings → Root Directory
+3. **⚠️ IMPORTANTE: Configurar o Root Directory**:
+   - Vá em **Settings** → **Root Directory**
    - Defina como: `backend`
-   
-   OU
-   
-   - Use os arquivos de configuração na raiz (railway.json, Procfile, package.json)
+   - Isso faz com que o Railway olhe dentro do diretório `backend/` para encontrar o `package.json`
 
 ### 2. Variáveis de Ambiente Necessárias
 
@@ -58,17 +55,17 @@ O Railway detectará automaticamente:
 
 ### 5. Comandos de Build e Start
 
-O Railway executará automaticamente:
+Com o **Root Directory = `backend`**, o Railway executará:
 
-**Build:**
-```bash
-cd backend && npm install && npm run build
-```
+**Detecção Automática (Nixpacks):**
+- Detecta `package.json` no diretório `backend/`
+- Instala dependências: `npm ci`
+- Faz build: `npm run build`
+- Inicia: `node dist/main.js`
 
-**Start:**
-```bash
-cd backend && node dist/main.js
-```
+**Arquivos de Configuração:**
+- `backend/nixpacks.toml` - Configuração do Nixpacks (se necessário)
+- `backend/package.json` - Scripts de build e start
 
 ### 6. Verificação
 
@@ -84,7 +81,12 @@ Após o deploy, verifique:
 - ✅ Resolvido: O Railway agora usa `Procfile` ou `package.json` scripts
 
 **Erro: "Railpack could not determine how to build the app"**
-- ✅ Resolvido: Arquivos `railway.json` e `nixpacks.toml` foram criados
+- ✅ Resolvido: Configure o Root Directory como `backend`
+- O Nixpacks detectará automaticamente o Node.js pelo `package.json`
+
+**Erro: "undefined variable 'npm'"**
+- ✅ Resolvido: Removido `npm` do array de pacotes Nix
+- O npm já vem incluído com `nodejs-18_x` automaticamente
 
 **Erro de conexão com MongoDB:**
 - Verifique se `MONGODB_URI` está configurada corretamente
