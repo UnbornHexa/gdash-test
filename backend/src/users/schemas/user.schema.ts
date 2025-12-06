@@ -37,4 +37,4 @@ export class User extends Document {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-UserSchema.index({ email: 1 });
+// Índice removido - o decorator @Prop({ unique: true }) já cria o índice automaticamente

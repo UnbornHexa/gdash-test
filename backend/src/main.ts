@@ -12,9 +12,30 @@ async function bootstrap() {
       console.error('❌ [CRÍTICO] MONGODB_URI não está definida!');
       console.error('❌ A aplicação tentará usar o fallback local (mongodb:27017) que não funciona em produção.');
       console.error('❌ Configure a variável MONGODB_URI ou MONGO_URI no Railway.');
-      console.error('❌ Veja: RAILWAY_DEPLOY.md seção 3 para instruções.');
+      console.error('❌ Veja: README.md seção "Deploy no Railway" para instruções.');
     } else {
-      console.log(`   ✅ MONGODB_URI: definida (${mongoUri.substring(0, 20)}...)`);
+      // Log da URI sem expor a senha
+      const uriForLog = mongoUri.replace(/:[^:@]+@/, ':****@');
+      console.log(`   ✅ MONGODB_URI: definida`);
+      console.log(`   📦 Connection String: ${uriForLog}`);
+      
+      // Validação básica da URI
+      try {
+        const parsedUri = new URL(mongoUri);
+        console.log(`   📦 Protocolo: ${parsedUri.protocol}`);
+        console.log(`   📦 Host: ${parsedUri.hostname}`);
+        console.log(`   📦 Database: ${parsedUri.pathname.replace('/', '') || 'padrão'}`);
+        console.log(`   📦 AuthSource: ${parsedUri.searchParams.get('authSource') || 'não especificado'}`);
+        
+        // Verifica se tem usuário e senha
+        if (parsedUri.username && parsedUri.password) {
+          console.log(`   ✅ Credenciais presentes na URI`);
+        } else {
+          console.warn(`   ⚠️ Credenciais não encontradas na URI - pode causar erro de autenticação`);
+        }
+      } catch (error) {
+        console.error(`   ❌ Erro ao parsear MONGODB_URI: ${error}`);
+      }
     }
     console.log(`   PORT: ${process.env.PORT || 3000}`);
     

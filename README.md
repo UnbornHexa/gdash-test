@@ -585,6 +585,100 @@ Se você estiver em uma região com acesso limitado ao Docker Hub, configure um 
 
 **Nota**: Os erros de timeout geralmente são temporários e relacionados à conectividade de rede. Aguarde alguns minutos e tente novamente.
 
+## 🚂 Deploy no Railway
+
+O projeto está configurado para deploy no Railway. Siga estes passos:
+
+### 1. Configuração Inicial
+
+1. **Criar um novo projeto** no Railway
+2. **Adicionar um serviço** e conectar ao repositório Git
+3. **Root Directory**: Deixe vazio ou como `.` (raiz) - os arquivos `railway.json` e `Procfile` já estão configurados
+
+### 2. Variáveis de Ambiente Obrigatórias
+
+Configure as seguintes variáveis de ambiente no Railway:
+
+#### ⚠️ CRÍTICO - MongoDB
+- `MONGODB_URI` ou `MONGO_URI` - **String de conexão do MongoDB**
+  - **Opção 1 (Recomendado)**: MongoDB do Railway
+    - No projeto Railway, clique em **"New"** → **"Database"** → **"Add MongoDB"**
+    - O Railway criará automaticamente `MONGO_URI`
+    - No serviço da API, adicione: `MONGODB_URI` = valor de `MONGO_URI` do MongoDB
+  - **Opção 2**: MongoDB Atlas (Cloud - Gratuito)
+    - Crie conta em [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+    - Crie um cluster gratuito (M0)
+    - Configure Network Access: Adicione `0.0.0.0/0`
+    - Configure Database Access: Crie usuário com senha
+    - Obtenha connection string: `mongodb+srv://user:pass@cluster.mongodb.net/weather_db`
+    - Adicione como variável `MONGODB_URI` no Railway
+
+#### Outras Variáveis Obrigatórias
+- `JWT_SECRET` - Chave secreta para JWT (gere uma chave forte, mínimo 32 caracteres)
+- `PORT` - Porta da aplicação (Railway define automaticamente via variável `PORT`)
+- `NODE_ENV` - `production`
+
+#### Variáveis Opcionais mas Recomendadas
+- `DEFAULT_USER_EMAIL` - Email do usuário padrão (padrão: `admin@example.com`)
+- `DEFAULT_USER_PASSWORD` - Senha do usuário padrão
+- `CORS_ORIGINS` - Origens permitidas para CORS (ex: `https://your-frontend.railway.app`)
+
+### 3. Deploy Automático
+
+O Railway detectará automaticamente a configuração:
+- **Build**: `cd backend && npm install && npm run build` (via `railway.json`)
+- **Start**: `cd backend && npm run start:prod` (via `Procfile` ou `railway.json`)
+
+### 4. Verificação
+
+Após o deploy, verifique:
+1. **Health Check**: `https://your-app.railway.app/api/health`
+2. **API Endpoint**: `https://your-app.railway.app/api`
+3. **Logs**: Verifique os logs no Railway para erros
+
+### 5. Troubleshooting Railway
+
+**Erro: `getaddrinfo ENOTFOUND mongodb` ou `Unable to connect to the database`** ⚠️
+- **Causa**: A variável `MONGODB_URI` não está configurada no Railway
+- **Solução**: Configure o MongoDB conforme seção 2 acima
+- **Verificação**: Nos logs, deve aparecer `MONGODB_URI: definida` (não "não definida")
+
+**Erro: `MongoServerError: Authentication failed`** 🔐
+- **Causa**: Connection string configurada, mas usuário/senha incorretos
+- **Soluções**:
+  1. Verifique se a connection string está completa e correta
+  2. Se a senha tem caracteres especiais (`@`, `#`, `%`), faça URL encoding:
+     - `@` → `%40`, `#` → `%23`, `%` → `%25`
+  3. Recrie o MongoDB no Railway ou use MongoDB Atlas
+
+**Erro: "Railpack could not determine how to build the app"**
+- **Solução**: Verifique se o Root Directory está como `.` (raiz) ou `backend`
+- O Nixpacks detectará automaticamente o Node.js pelo `package.json`
+
+**Erro: "Cannot find module '/app/dist/main.js'"**
+- **Solução**: O build deve executar `npm install` (instala devDependencies como @nestjs/cli)
+- O start command usa `npm run start:prod` que executa `prestart:prod` fazendo build automaticamente
+
+### 6. Deploy do Frontend (Opcional)
+
+**Opção 1: Railway**
+1. Crie um novo serviço no Railway
+2. Configure Root Directory como: `frontend`
+3. Build Command: `npm install && npm run build`
+4. Start Command: `npm run preview` (ou configure um servidor estático)
+
+**Opção 2: Outras Plataformas**
+- Use Vercel, Netlify, ou Cloudflare Pages para o frontend
+- Configure `VITE_API_URL` apontando para a API no Railway
+
+### Arquivos de Configuração
+
+O projeto inclui os seguintes arquivos para deploy no Railway:
+- ✅ `package.json` (raiz) - Scripts de build e start
+- ✅ `railway.json` - Configuração do Railway
+- ✅ `Procfile` - Comando de start para o Railway
+- ✅ `backend/nixpacks.toml` - Configuração alternativa de build (Nixpacks)
+
 ## 📄 Licença
 
 Este projeto foi criado para fins educacionais/demonstrativos.
